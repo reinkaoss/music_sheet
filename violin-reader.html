@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Violin Sheet Reader</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0c18;
+      --surface:   #161425;
+      --card:      #1c1a2e;
+      --border:    #2c2845;
+      --accent:    #f5bb40;
+      --accent-lo: rgba(245,187,64,.1);
+      --green:     #4dcb78;
+      --green-lo:  rgba(77,203,120,.12);
+      --red:       #e95555;
+      --red-lo:    rgba(233,85,85,.12);
+      --muted:     #6e6888;
+      --text:      #e9e4f8;
+      --sub:       #a099c0;
+      --staff-bg:  #fefbf0;
+    }
+
+    html { height: 100%; }
+    body {
+      min-height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 12px 48px;
+      gap: 11px;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      width: 100%; max-width: 440px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .logo { display: flex; align-items: center; gap: 8px; }
+    .logo-icon {
+      width: 34px; height: 34px; border-radius: 10px;
+      background: linear-gradient(135deg, #f5bb40, #e8834a);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .logo-text { font-size: 1rem; font-weight: 700; letter-spacing: -.02em; }
+    .logo-text span { color: var(--accent); }
+
+    .scoreboard { display: flex; gap: 14px; }
+    .score-pill {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 99px; padding: 4px 10px;
+      font-size: .75rem; color: var(--sub);
+    }
+    .score-pill b { color: var(--text); font-size: .9rem; font-weight: 700; }
+
+    /* ── Progress ───────────────────────────────────────── */
+    .progress-track {
+      width: 100%; max-width: 440px;
+      height: 3px; background: var(--border); border-radius: 99px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), #e8834a);
+      transition: width .5s cubic-bezier(.4,0,.2,1);
+      width: 0%;
+    }
+
+    /* ── Staff card ─────────────────────────────────────── */
+    .staff-wrap {
+      width: 100%; max-width: 440px; position: relative;
+      border-radius: 20px; overflow: hidden;
+      box-shadow: 0 12px 48px rgba(0,0,0,.6), 0 2px 8px rgba(0,0,0,.4);
+    }
+    .staff-wrap svg { display: block; width: 100%; height: auto; }
+
+    /* ── Note info pill ─────────────────────────────────── */
+    .note-info {
+      width: 100%; max-width: 440px;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 2px;
+    }
+    .note-tag {
+      font-size: .72rem; color: var(--muted); letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .note-counter {
+      font-size: .72rem; color: var(--muted);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; padding: 2px 8px;
+    }
+
+    /* ── Controls ───────────────────────────────────────── */
+    .controls { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 9px; }
+
+    .group-label {
+      font-size: .68rem; text-transform: uppercase; letter-spacing: .1em;
+      color: var(--muted); margin-bottom: 5px; font-weight: 600;
+    }
+
+    .btn-row { display: flex; gap: 7px; }
+
+    .btn {
+      flex: 1; position: relative; overflow: hidden;
+      padding: 0; height: 58px;
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 1.05rem; font-weight: 700;
+      cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1px;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color .15s, background .15s, color .15s,
+                  transform .1s, box-shadow .15s;
+      user-select: none;
+    }
+    .btn-label { font-size: 1.1rem; font-weight: 800; line-height: 1; }
+    .btn-sub { font-size: .6rem; font-weight: 500; color: var(--muted); letter-spacing: .04em; }
+
+    /* finger buttons slightly shorter label */
+    #fng-btns .btn-label { font-size: 1.3rem; }
+
+    .btn:active { transform: scale(.94); }
+
+    .btn.selected {
+      border-color: var(--accent);
+      background: linear-gradient(160deg, #22193a, #1c1430);
+      color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(245,187,64,.15), inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .btn.selected .btn-sub { color: rgba(245,187,64,.6); }
+
+    .btn.correct {
+      border-color: var(--green);
+      background: linear-gradient(160deg, #0e2318, #0a1c12);
+      color: var(--green);
+      box-shadow: 0 0 0 3px rgba(77,203,120,.15);
+      animation: popIn .25s cubic-bezier(.34,1.56,.64,1);
+    }
+    .btn.correct .btn-sub { color: rgba(77,203,120,.6); }
+
+    .btn.wrong {
+      border-color: var(--red);
+      background: linear-gradient(160deg, #2a0e0e, #200808);
+      color: var(--red);
+      box-shadow: 0 0 0 3px rgba(233,85,85,.15);
+      animation: shake .35s ease;
+    }
+    .btn.wrong .btn-sub { color: rgba(233,85,85,.6); }
+
+    .btn:disabled { opacity: .35; cursor: default; pointer-events: none; }
+
+    /* ── Feedback ───────────────────────────────────────── */
+    .feedback-wrap {
+      min-height: 44px; display: flex; align-items: center; justify-content: center;
+    }
+    .feedback {
+      text-align: center; font-size: .86rem; font-weight: 500; color: var(--muted);
+      padding: 8px 16px; border-radius: 10px;
+      transition: all .2s;
+    }
+    .feedback.correct {
+      color: var(--green); background: var(--green-lo);
+      border: 1px solid rgba(77,203,120,.2);
+      animation: fadeUp .2s ease;
+    }
+    .feedback.wrong {
+      color: var(--red); background: var(--red-lo);
+      border: 1px solid rgba(233,85,85,.2);
+      animation: fadeUp .2s ease;
+    }
+
+    /* ── Hint ───────────────────────────────────────────── */
+    .hint { font-size: .7rem; color: var(--muted); text-align: center; opacity: .7; }
+
+    /* ── Animations ─────────────────────────────────────── */
+    @keyframes popIn {
+      0%   { transform: scale(.95); }
+      60%  { transform: scale(1.06); }
+      100% { transform: scale(1); }
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-5px); }
+      40%     { transform: translateX(5px); }
+      60%     { transform: translateX(-3px); }
+      80%     { transform: translateX(3px); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🎻</div>
+    <div class="logo-text"><span>Violin</span> Reader</div>
+  </div>
+  <div class="scoreboard">
+    <div class="score-pill">✅ <b id="st-ok">0</b></div>
+    <div class="score-pill">🔥 <b id="st-streak">0</b></div>
+  </div>
+</header>
+
+<!-- ── Progress bar ───────────────────────────────────────── -->
+<div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+
+<!-- ── Staff ─────────────────────────────────────────────── -->
+<div class="staff-wrap">
+  <svg id="staff-svg" viewBox="0 0 420 250" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+
+<!-- ── Note info ──────────────────────────────────────────── -->
+<div class="note-info">
+  <span class="note-tag" id="note-hint">Select string → finger</span>
+  <span class="note-counter" id="note-counter">♩ 1</span>
+</div>
+
+<!-- ── Controls ──────────────────────────────────────────── -->
+<div class="controls">
+
+  <div>
+    <div class="group-label">String</div>
+    <div class="btn-row" id="str-btns">
+      <button class="btn" data-s="G">
+        <span class="btn-label">G</span>
+        <span class="btn-sub">string</span>
+      </button>
+      <button class="btn" data-s="D">
+        <span class="btn-label">D</span>
+        <span class="btn-sub">string</span>
+      </button>
+      <button class="btn" data-s="A">
+        <span class="btn-label">A</span>
+        <span class="btn-sub">string</span>
+      </button>
+      <button class="btn" data-s="E">
+        <span class="btn-label">E</span>
+        <span class="btn-sub">string</span>
+      </button>
+    </div>
+  </div>
+
+  <div>
+    <div class="group-label">Finger</div>
+    <div class="btn-row" id="fng-btns">
+      <button class="btn" data-f="0">
+        <span class="btn-label">0</span>
+        <span class="btn-sub">open</span>
+      </button>
+      <button class="btn" data-f="1"><span class="btn-label">1</span></button>
+      <button class="btn" data-f="2"><span class="btn-label">2</span></button>
+      <button class="btn" data-f="3"><span class="btn-label">3</span></button>
+      <button class="btn" data-f="4"><span class="btn-label">4</span></button>
+    </div>
+  </div>
+
+  <div class="feedback-wrap">
+    <div class="feedback" id="feedback">Pick a string, then a finger — auto-checks!</div>
+  </div>
+
+</div>
+
+<div class="hint">Tap string + finger to check instantly · 🔊 plays on correct</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<script>
+// ── NOTE DATA ─────────────────────────────────────────────
+// pos: diatonic step where C4=0, D4=1, E4=2, F4=3, G4=4 …
+// Treble staff lines: E4(2), G4(4), B4(6), D5(8), F5(10)
+
+const NOTES = [
+  // G string ──────────────────────────────
+  { s:'G', f:0, name:'G3',  pos:-3, acc:null, hz:196.00 },
+  { s:'G', f:1, name:'A3',  pos:-2, acc:null, hz:220.00 },
+  { s:'G', f:2, name:'B3',  pos:-1, acc:null, hz:246.94 },
+  { s:'G', f:3, name:'C4',  pos: 0, acc:null, hz:261.63 },
+  { s:'G', f:4, name:'D4',  pos: 1, acc:null, hz:293.66 },
+  // D string ──────────────────────────────
+  { s:'D', f:0, name:'D4',  pos: 1, acc:null, hz:293.66 },
+  { s:'D', f:1, name:'E4',  pos: 2, acc:null, hz:329.63 },
+  { s:'D', f:2, name:'F♯4', pos: 3, acc:'#',  hz:369.99 },
+  { s:'D', f:3, name:'G4',  pos: 4, acc:null, hz:392.00 },
+  { s:'D', f:4, name:'A4',  pos: 5, acc:null, hz:440.00 },
+  // A string ──────────────────────────────
+  { s:'A', f:0, name:'A4',  pos: 5, acc:null, hz:440.00 },
+  { s:'A', f:1, name:'B4',  pos: 6, acc:null, hz:493.88 },
+  { s:'A', f:2, name:'C♯5', pos: 7, acc:'#',  hz:554.37 },
+  { s:'A', f:3, name:'D5',  pos: 8, acc:null, hz:587.33 },
+  { s:'A', f:4, name:'E5',  pos: 9, acc:null, hz:659.25 },
+  // E string ──────────────────────────────
+  { s:'E', f:0, name:'E5',  pos: 9, acc:null, hz:659.25 },
+  { s:'E', f:1, name:'F♯5', pos:10, acc:'#',  hz:739.99 },
+  { s:'E', f:2, name:'G♯5', pos:11, acc:'#',  hz:830.61 },
+  { s:'E', f:3, name:'A5',  pos:12, acc:null, hz:880.00 },
+  { s:'E', f:4, name:'B5',  pos:13, acc:null, hz:987.77 },
+];
+
+// pos → all valid (string, finger) combos  [D4/A4/E5 share two each]
+const PITCH_MAP = {};
+NOTES.forEach(n => (PITCH_MAP[n.pos] ??= []).push({ s:n.s, f:n.f }));
+
+// ── SVG CONSTANTS ─────────────────────────────────────────
+const W=420, H=250;
+const SL=74, SR=408;      // staff x bounds
+const NS=9;                // px per note step
+const BLY=185;             // y of E4 (pos 2) = bottom staff line
+
+const ny = pos => BLY - (pos - 2) * NS;
+
+// Staff line y coords: E4,G4,B4,D5,F5
+const STAFF_YS = [2,4,6,8,10].map(ny);  // [185,167,149,131,113]
+
+// 4 note x positions: current + 3 upcoming
+const NX = [140, 215, 283, 348];
+
+// Visual style per slot
+const SLOT_COLOR   = ['#f5bb40', '#8e86b0', '#6a647e', '#4e4a62'];
+const SLOT_OPACITY = [1, 0.45, 0.28, 0.18];
+
+// ── SVG HELPERS ───────────────────────────────────────────
+const NS_URI = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, txt) {
+  const e = document.createElementNS(NS_URI, tag);
+  for (const [k,v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (txt !== undefined) e.textContent = txt;
+  return e;
+}
+
+function drawNote(parent, note, x, color, opacity) {
+  if (!note) return;
+  const y = ny(note.pos);
+  const g = el('g', { opacity: String(opacity) });
+  const LHW = 15; // ledger line half-width
+
+  // Ledger lines below staff (even positions 0, −2, …)
+  if (note.pos < 2) {
+    const low = note.pos % 2 === 0 ? note.pos : note.pos + 1;
+    for (let p = 0; p >= low && p <= 0; p -= 2)
+      g.appendChild(el('line', { x1:x-LHW, x2:x+LHW, y1:ny(p), y2:ny(p), stroke:color, 'stroke-width':'1.3' }));
+  }
+
+  // Ledger lines above staff (even positions 12, 14, …)
+  if (note.pos > 10) {
+    const high = note.pos % 2 === 0 ? note.pos : note.pos - 1;
+    for (let p = 12; p <= high; p += 2)
+      g.appendChild(el('line', { x1:x-LHW, x2:x+LHW, y1:ny(p), y2:ny(p), stroke:color, 'stroke-width':'1.3' }));
+  }
+
+  // Sharp accidental
+  if (note.acc) {
+    g.appendChild(el('text', {
+      x: String(x - 17), y: String(y + 5),
+      'font-size': '17', 'font-family': "Georgia,'Times New Roman',serif",
+      fill: color, 'text-anchor': 'middle'
+    }, '♯'));
+  }
+
+  // Note head (slightly tilted filled ellipse)
+  const stemUp = note.pos < 6;
+  g.appendChild(el('ellipse', {
+    cx: String(x), cy: String(y), rx: '9', ry: '6.5',
+    fill: color, transform: `rotate(-15,${x},${y})`
+  }));
+
+  // Stem
+  const sx  = stemUp ? x + 7.5 : x - 7.5;
+  const sy2 = stemUp ? y - NS * 7 : y + NS * 7;
+  g.appendChild(el('line', {
+    x1: String(sx), x2: String(sx), y1: String(y), y2: String(sy2),
+    stroke: color, 'stroke-width': '1.7'
+  }));
+
+  parent.appendChild(g);
+}
+
+// ── RENDER ────────────────────────────────────────────────
+function renderStaff(visible, flashMode) {
+  // flashMode: null | 'correct' | 'wrong'
+  const svg = document.getElementById('staff-svg');
+  svg.innerHTML = '';
+
+  // ── defs (right-edge fade) ──
+  const defs = el('defs', {});
+  const grad = el('linearGradient', { id:'rfade', x1:'0', x2:'1', y1:'0', y2:'0' });
+  grad.appendChild(el('stop', { offset:'0%',   'stop-color':'#fefbf0', 'stop-opacity':'0' }));
+  grad.appendChild(el('stop', { offset:'100%', 'stop-color':'#fefbf0', 'stop-opacity':'1' }));
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  // ── Background ──
+  svg.appendChild(el('rect', { x:'0', y:'0', width:W, height:H, fill:'#fefbf0' }));
+
+  // ── Cursor highlight around current note ──
+  const curY1 = STAFF_YS[4] - 18;
+  const curY2 = STAFF_YS[0] + 18;
+  const curH  = curY2 - curY1;
+  const fillColor = flashMode === 'correct' ? 'rgba(77,203,120,.18)'
+                  : flashMode === 'wrong'   ? 'rgba(233,85,85,.18)'
+                  : 'rgba(245,187,64,.10)';
+  const strokeCol = flashMode === 'correct' ? 'rgba(77,203,120,.5)'
+                  : flashMode === 'wrong'   ? 'rgba(233,85,85,.5)'
+                  : 'rgba(245,187,64,.4)';
+  svg.appendChild(el('rect', {
+    x: String(NX[0] - 24), y: String(curY1),
+    width: '48', height: String(curH),
+    fill: fillColor, rx: '10',
+    stroke: strokeCol, 'stroke-width': '1.5'
+  }));
+
+  // ── Staff lines ──
+  STAFF_YS.forEach(y =>
+    svg.appendChild(el('line', { x1:SL, x2:SR, y1:y, y2:y, stroke:'#aaa', 'stroke-width':'1.2' }))
+  );
+
+  // ── Opening bar line ──
+  svg.appendChild(el('line', {
+    x1: SL, x2: SL, y1: STAFF_YS[4], y2: STAFF_YS[0],
+    stroke: '#aaa', 'stroke-width': '1.8'
+  }));
+
+  // ── Treble clef ──
+  svg.appendChild(el('text', {
+    x: '5', y: String(ny(4) + 14),
+    'font-size': '72', 'font-family': "Georgia,'Times New Roman',serif",
+    fill: '#666'
+  }, '𝄞'));
+
+  // ── Notes ──
+  visible.forEach((note, i) => {
+    if (!note) return;
+    const baseColor = SLOT_COLOR[i];
+    const color = (i === 0 && flashMode)
+      ? (flashMode === 'correct' ? '#4dcb78' : '#e95555')
+      : baseColor;
+    drawNote(svg, note, NX[i], color, SLOT_OPACITY[i]);
+  });
+
+  // ── Right-edge fade (hides the last dim note gracefully) ──
+  svg.appendChild(el('rect', {
+    x: String(NX[2] + 30), y: '0',
+    width: String(W - NX[2] - 30), height: H,
+    fill: 'url(#rfade)'
+  }));
+}
+
+// ── AUDIO ─────────────────────────────────────────────────
+let audioCtx = null;
+function ctx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playCorrect(hz) {
+  try {
+    const c = ctx(), t = c.currentTime;
+    const osc    = c.createOscillator();
+    const filter = c.createBiquadFilter();
+    const gain   = c.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = hz;
+    filter.type = 'lowpass';
+    filter.frequency.value = Math.min(hz * 5, 8000);
+    filter.Q.value = 0.7;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.16, t + 0.025);
+    gain.gain.setValueAtTime(0.16, t + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 1.3);
+    osc.connect(filter); filter.connect(gain); gain.connect(c.destination);
+    osc.start(t); osc.stop(t + 1.4);
+  } catch(_) {}
+}
+
+function playWrong() {
+  try {
+    const c = ctx(), t = c.currentTime;
+    const osc  = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.linearRampToValueAtTime(90, t + 0.18);
+    gain.gain.setValueAtTime(0.09, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(t); osc.stop(t + 0.25);
+  } catch(_) {}
+}
+
+// ── QUEUE ─────────────────────────────────────────────────
+const shuffle = arr => [...arr].sort(() => Math.random() - .5);
+
+let queue    = shuffle(NOTES);
+let qPtr     = 0;
+let answered = 0; // total correct answers for progress
+
+function getVisible() {
+  return [0, 1, 2, 3].map(i => queue[(qPtr + i) % queue.length]);
+}
+function currentNote() { return queue[qPtr % queue.length]; }
+
+// ── GAME STATE ────────────────────────────────────────────
+let selS = null, selF = null, locked = false;
+let okCount = 0, streak = 0;
+
+const fbEl   = document.getElementById('feedback');
+const hintEl = document.getElementById('note-hint');
+const ctrEl  = document.getElementById('note-counter');
+
+function setProgress() {
+  const pct = ((answered % NOTES.length) / NOTES.length) * 100;
+  document.getElementById('progress').style.width = pct + '%';
+  ctrEl.textContent = '♩ ' + (answered + 1);
+}
+
+function resetBtns(clearStr = true, clearFng = true) {
+  if (clearStr) { selS = null; document.querySelectorAll('#str-btns .btn').forEach(b => b.className='btn'); }
+  if (clearFng) { selF = null; document.querySelectorAll('#fng-btns .btn').forEach(b => b.className='btn'); }
+}
+
+function setLocked(v) {
+  locked = v;
+  document.querySelectorAll('.btn').forEach(b => b.disabled = v);
+}
+
+function advance() {
+  qPtr = (qPtr + 1) % queue.length;
+  if (qPtr === 0) queue = shuffle(NOTES); // reshuffle each full cycle
+  answered++;
+  resetBtns();
+  fbEl.textContent = 'Pick a string, then a finger — auto-checks!';
+  fbEl.className = 'feedback';
+  hintEl.textContent = 'Select string → finger';
+  setProgress();
+  renderStaff(getVisible(), null);
+  setLocked(false);
+}
+
+function checkAnswer() {
+  if (selS === null || selF === null || locked) return;
+  setLocked(true);
+
+  const note  = currentNote();
+  const valid = PITCH_MAP[note.pos] || [];
+  const good  = valid.some(a => a.s === selS && a.f === selF);
+
+  if (good) {
+    okCount++; streak++;
+    playCorrect(note.hz);
+
+    document.querySelector(`#str-btns [data-s="${selS}"]`)?.classList.add('correct');
+    document.querySelector(`#fng-btns [data-f="${selF}"]`)?.classList.add('correct');
+
+    fbEl.innerHTML = `✅ <strong>${note.name}</strong> · ${note.s} string, finger ${note.f}`;
+    fbEl.className = 'feedback correct';
+    hintEl.textContent = `${note.name}`;
+    renderStaff(getVisible(), 'correct');
+
+    document.getElementById('st-ok').textContent     = okCount;
+    document.getElementById('st-streak').textContent = streak;
+
+    setTimeout(advance, 1100);
+
+  } else {
+    streak = 0;
+    playWrong();
+
+    // Mark selected as wrong
+    document.querySelector(`#str-btns [data-s="${selS}"]`)?.classList.add('wrong');
+    document.querySelector(`#fng-btns [data-f="${selF}"]`)?.classList.add('wrong');
+
+    // Show correct answer(s) in green
+    valid.forEach(a => {
+      document.querySelector(`#str-btns [data-s="${a.s}"]`)?.classList.add('correct');
+      document.querySelector(`#fng-btns [data-f="${a.f}"]`)?.classList.add('correct');
+    });
+
+    const ans = valid.map(a => `${a.s} string, finger ${a.f}`).join(' or ');
+    fbEl.innerHTML = `❌ <strong>${note.name}</strong>: ${ans}`;
+    fbEl.className = 'feedback wrong';
+    renderStaff(getVisible(), 'wrong');
+
+    document.getElementById('st-streak').textContent = 0;
+
+    // Auto-advance after showing the correct answer
+    setTimeout(advance, 1800);
+  }
+}
+
+// ── EVENTS ────────────────────────────────────────────────
+document.getElementById('str-btns').addEventListener('click', e => {
+  if (locked) return;
+  const b = e.target.closest('[data-s]');
+  if (!b) return;
+  selS = b.dataset.s;
+  document.querySelectorAll('#str-btns .btn').forEach(x => x.className = 'btn');
+  b.classList.add('selected');
+  if (selS !== null && selF !== null) checkAnswer();
+});
+
+document.getElementById('fng-btns').addEventListener('click', e => {
+  if (locked) return;
+  const b = e.target.closest('[data-f]');
+  if (!b) return;
+  selF = +b.dataset.f;
+  document.querySelectorAll('#fng-btns .btn').forEach(x => x.className = 'btn');
+  b.classList.add('selected');
+  if (selS !== null && selF !== null) checkAnswer();
+});
+
+// ── INIT ──────────────────────────────────────────────────
+setProgress();
+renderStaff(getVisible(), null);
+</script>
+
+</body>
+</html>
