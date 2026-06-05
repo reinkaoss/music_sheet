@@ -450,6 +450,7 @@
     .panel-layout { display: flex; flex-direction: column; gap: 10px; width: 100%; }
     .panel-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
     .panel-side { display: flex; flex-direction: column; gap: 10px; }
+    .panel-inputs, .panel-settings { display: flex; flex-direction: column; gap: 10px; }
 
     /* ── Desktop layout ─────────────────────────────────── */
     @media (min-width: 900px) {
@@ -485,6 +486,10 @@
         border-radius: 18px;
         gap: 14px;
       }
+
+      /* Desktop sidebar: settings above answer buttons */
+      .panel-settings { order: 1; }
+      .panel-inputs { order: 2; }
 
       .panel-side .group-label { margin-bottom: 6px; }
 
@@ -611,53 +616,56 @@
     </div>
 
     <div class="panel-side">
-      <div class="string-filter-wrap">
-        <div class="group-label">Note pool <span class="filter-count" id="p-filter-count"></span></div>
-        <div class="filter-chips string-filter-chips" id="p-string-filter">
-          <button type="button" class="filter-chip" data-preset="all">All</button>
-          <button type="button" class="filter-chip string-filter-chip" data-str="G">G</button>
-          <button type="button" class="filter-chip string-filter-chip" data-str="D">D</button>
-          <button type="button" class="filter-chip string-filter-chip" data-str="A">A</button>
-          <button type="button" class="filter-chip string-filter-chip" data-str="E">E</button>
+      <div class="panel-inputs">
+        <div>
+          <div class="group-label">String</div>
+          <div class="btn-row" id="p-str">
+            <button class="btn" data-s="G"><span class="btn-lbl">G</span><span class="btn-sub">string</span></button>
+            <button class="btn" data-s="D"><span class="btn-lbl">D</span><span class="btn-sub">string</span></button>
+            <button class="btn" data-s="A"><span class="btn-lbl">A</span><span class="btn-sub">string</span></button>
+            <button class="btn" data-s="E"><span class="btn-lbl">E</span><span class="btn-sub">string</span></button>
+          </div>
         </div>
-        <div class="group-label" style="margin-top:4px">Fingers</div>
-        <div class="filter-chips finger-filter-chips" id="p-finger-filter">
-          <button type="button" class="filter-chip finger-filter-chip" data-finger="0">0</button>
-          <button type="button" class="filter-chip finger-filter-chip" data-finger="1">1</button>
-          <button type="button" class="filter-chip finger-filter-chip" data-finger="2">2</button>
-          <button type="button" class="filter-chip finger-filter-chip" data-finger="3">3</button>
-          <button type="button" class="filter-chip finger-filter-chip" data-finger="4">4</button>
+        <div>
+          <div class="group-label">Finger</div>
+          <div class="btn-row" id="p-fng">
+            <button class="btn" data-f="0"><span class="btn-lbl">0</span><span class="btn-sub">open</span></button>
+            <button class="btn" data-f="1"><span class="btn-lbl">1</span></button>
+            <button class="btn" data-f="2"><span class="btn-lbl">2</span></button>
+            <button class="btn" data-f="3"><span class="btn-lbl">3</span></button>
+            <button class="btn" data-f="4"><span class="btn-lbl">4</span></button>
+          </div>
         </div>
-        <div class="group-label" style="margin-top:4px">Difficulty</div>
-        <div class="filter-chips difficulty-chips" id="p-difficulty">
-          <button type="button" class="filter-chip" data-difficulty="open">Open</button>
-          <button type="button" class="filter-chip" data-difficulty="beginner">Beginner</button>
-          <button type="button" class="filter-chip" data-difficulty="mid">Mid</button>
-          <button type="button" class="filter-chip active" data-difficulty="full">Full</button>
-        </div>
+        <button type="button" class="live-skip" id="p-skip-btn" style="display:none">Skip</button>
       </div>
-      <button type="button" class="toggle-btn" id="practice-uninterrupted-btn">🔁 Uninterrupted</button>
-      <div class="hint" id="practice-uninterrupted-hint" style="display:none">Same note until correct · Skip to move on</div>
-      <button type="button" class="live-skip" id="p-skip-btn" style="display:none">Skip</button>
-      <div>
-        <div class="group-label">String</div>
-        <div class="btn-row" id="p-str">
-          <button class="btn" data-s="G"><span class="btn-lbl">G</span><span class="btn-sub">string</span></button>
-          <button class="btn" data-s="D"><span class="btn-lbl">D</span><span class="btn-sub">string</span></button>
-          <button class="btn" data-s="A"><span class="btn-lbl">A</span><span class="btn-sub">string</span></button>
-          <button class="btn" data-s="E"><span class="btn-lbl">E</span><span class="btn-sub">string</span></button>
+      <div class="panel-settings">
+        <div class="string-filter-wrap">
+          <div class="group-label">Note pool <span class="filter-count" id="p-filter-count"></span></div>
+          <div class="filter-chips string-filter-chips" id="p-string-filter">
+            <button type="button" class="filter-chip" data-preset="all">All</button>
+            <button type="button" class="filter-chip string-filter-chip" data-str="G">G</button>
+            <button type="button" class="filter-chip string-filter-chip" data-str="D">D</button>
+            <button type="button" class="filter-chip string-filter-chip" data-str="A">A</button>
+            <button type="button" class="filter-chip string-filter-chip" data-str="E">E</button>
+          </div>
+          <div class="group-label" style="margin-top:4px">Fingers</div>
+          <div class="filter-chips finger-filter-chips" id="p-finger-filter">
+            <button type="button" class="filter-chip finger-filter-chip" data-finger="0">0</button>
+            <button type="button" class="filter-chip finger-filter-chip" data-finger="1">1</button>
+            <button type="button" class="filter-chip finger-filter-chip" data-finger="2">2</button>
+            <button type="button" class="filter-chip finger-filter-chip" data-finger="3">3</button>
+            <button type="button" class="filter-chip finger-filter-chip" data-finger="4">4</button>
+          </div>
+          <div class="group-label" style="margin-top:4px">Difficulty</div>
+          <div class="filter-chips difficulty-chips" id="p-difficulty">
+            <button type="button" class="filter-chip" data-difficulty="open">Open</button>
+            <button type="button" class="filter-chip" data-difficulty="beginner">Beginner</button>
+            <button type="button" class="filter-chip" data-difficulty="mid">Mid</button>
+            <button type="button" class="filter-chip active" data-difficulty="full">Full</button>
+          </div>
         </div>
-      </div>
-
-      <div>
-        <div class="group-label">Finger</div>
-        <div class="btn-row" id="p-fng">
-          <button class="btn" data-f="0"><span class="btn-lbl">0</span><span class="btn-sub">open</span></button>
-          <button class="btn" data-f="1"><span class="btn-lbl">1</span></button>
-          <button class="btn" data-f="2"><span class="btn-lbl">2</span></button>
-          <button class="btn" data-f="3"><span class="btn-lbl">3</span></button>
-          <button class="btn" data-f="4"><span class="btn-lbl">4</span></button>
-        </div>
+        <button type="button" class="toggle-btn" id="practice-uninterrupted-btn">🔁 Uninterrupted</button>
+        <div class="hint" id="practice-uninterrupted-hint" style="display:none">Same note until correct · Skip to move on</div>
       </div>
     </div>
   </div>
@@ -693,59 +701,63 @@
     </div>
 
     <div class="panel-side">
-      <div class="string-filter-wrap">
-        <div class="group-label">Note pool <span class="filter-count" id="l-filter-count"></span></div>
-        <div class="filter-chips string-filter-chips" id="l-string-filter">
-          <button type="button" class="filter-chip" data-preset="all">All</button>
-          <button type="button" class="filter-chip string-filter-chip" data-str="G">G</button>
-          <button type="button" class="filter-chip string-filter-chip" data-str="D">D</button>
-          <button type="button" class="filter-chip string-filter-chip" data-str="A">A</button>
-          <button type="button" class="filter-chip string-filter-chip" data-str="E">E</button>
-        </div>
-        <div class="group-label" style="margin-top:4px">Fingers</div>
-        <div class="filter-chips finger-filter-chips" id="l-finger-filter">
-          <button type="button" class="filter-chip finger-filter-chip" data-finger="0">0</button>
-          <button type="button" class="filter-chip finger-filter-chip" data-finger="1">1</button>
-          <button type="button" class="filter-chip finger-filter-chip" data-finger="2">2</button>
-          <button type="button" class="filter-chip finger-filter-chip" data-finger="3">3</button>
-          <button type="button" class="filter-chip finger-filter-chip" data-finger="4">4</button>
-        </div>
-        <div class="group-label" style="margin-top:4px">Difficulty</div>
-        <div class="filter-chips difficulty-chips" id="l-difficulty">
-          <button type="button" class="filter-chip" data-difficulty="open">Open</button>
-          <button type="button" class="filter-chip" data-difficulty="beginner">Beginner</button>
-          <button type="button" class="filter-chip" data-difficulty="mid">Mid</button>
-          <button type="button" class="filter-chip active" data-difficulty="full">Full</button>
-        </div>
-      </div>
-      <button type="button" class="toggle-btn" id="live-uninterrupted-btn">🔁 Uninterrupted</button>
-      <div class="hint" id="live-uninterrupted-hint" style="display:none">Same note until you play it correctly · Skip to move on</div>
-      <div class="live-status" id="live-status">🎤 Tap Start to enable the microphone</div>
-      <div class="live-actions">
-        <button class="play-btn" id="live-start-btn">🎤 Start Listening</button>
-        <button class="live-skip" id="live-skip-btn" disabled>Skip</button>
-      </div>
-      <button type="button" class="undo-btn" id="live-undo-btn">↩ Undo last (wrong detection)</button>
-      <div class="live-ref">
-        <div>
-          <div class="group-label">String</div>
-          <div class="btn-row" id="l-str">
-            <button class="btn" type="button" disabled data-s="G"><span class="btn-lbl">G</span><span class="btn-sub">string</span></button>
-            <button class="btn" type="button" disabled data-s="D"><span class="btn-lbl">D</span><span class="btn-sub">string</span></button>
-            <button class="btn" type="button" disabled data-s="A"><span class="btn-lbl">A</span><span class="btn-sub">string</span></button>
-            <button class="btn" type="button" disabled data-s="E"><span class="btn-lbl">E</span><span class="btn-sub">string</span></button>
+      <div class="panel-inputs">
+        <div class="live-ref">
+          <div>
+            <div class="group-label">String</div>
+            <div class="btn-row" id="l-str">
+              <button class="btn" type="button" disabled data-s="G"><span class="btn-lbl">G</span><span class="btn-sub">string</span></button>
+              <button class="btn" type="button" disabled data-s="D"><span class="btn-lbl">D</span><span class="btn-sub">string</span></button>
+              <button class="btn" type="button" disabled data-s="A"><span class="btn-lbl">A</span><span class="btn-sub">string</span></button>
+              <button class="btn" type="button" disabled data-s="E"><span class="btn-lbl">E</span><span class="btn-sub">string</span></button>
+            </div>
+          </div>
+          <div>
+            <div class="group-label">Finger</div>
+            <div class="btn-row" id="l-fng">
+              <button class="btn" type="button" disabled data-f="0"><span class="btn-lbl">0</span><span class="btn-sub">open</span></button>
+              <button class="btn" type="button" disabled data-f="1"><span class="btn-lbl">1</span></button>
+              <button class="btn" type="button" disabled data-f="2"><span class="btn-lbl">2</span></button>
+              <button class="btn" type="button" disabled data-f="3"><span class="btn-lbl">3</span></button>
+              <button class="btn" type="button" disabled data-f="4"><span class="btn-lbl">4</span></button>
+            </div>
           </div>
         </div>
-        <div>
-          <div class="group-label">Finger</div>
-          <div class="btn-row" id="l-fng">
-            <button class="btn" type="button" disabled data-f="0"><span class="btn-lbl">0</span><span class="btn-sub">open</span></button>
-            <button class="btn" type="button" disabled data-f="1"><span class="btn-lbl">1</span></button>
-            <button class="btn" type="button" disabled data-f="2"><span class="btn-lbl">2</span></button>
-            <button class="btn" type="button" disabled data-f="3"><span class="btn-lbl">3</span></button>
-            <button class="btn" type="button" disabled data-f="4"><span class="btn-lbl">4</span></button>
+      </div>
+      <div class="panel-settings">
+        <div class="string-filter-wrap">
+          <div class="group-label">Note pool <span class="filter-count" id="l-filter-count"></span></div>
+          <div class="filter-chips string-filter-chips" id="l-string-filter">
+            <button type="button" class="filter-chip" data-preset="all">All</button>
+            <button type="button" class="filter-chip string-filter-chip" data-str="G">G</button>
+            <button type="button" class="filter-chip string-filter-chip" data-str="D">D</button>
+            <button type="button" class="filter-chip string-filter-chip" data-str="A">A</button>
+            <button type="button" class="filter-chip string-filter-chip" data-str="E">E</button>
+          </div>
+          <div class="group-label" style="margin-top:4px">Fingers</div>
+          <div class="filter-chips finger-filter-chips" id="l-finger-filter">
+            <button type="button" class="filter-chip finger-filter-chip" data-finger="0">0</button>
+            <button type="button" class="filter-chip finger-filter-chip" data-finger="1">1</button>
+            <button type="button" class="filter-chip finger-filter-chip" data-finger="2">2</button>
+            <button type="button" class="filter-chip finger-filter-chip" data-finger="3">3</button>
+            <button type="button" class="filter-chip finger-filter-chip" data-finger="4">4</button>
+          </div>
+          <div class="group-label" style="margin-top:4px">Difficulty</div>
+          <div class="filter-chips difficulty-chips" id="l-difficulty">
+            <button type="button" class="filter-chip" data-difficulty="open">Open</button>
+            <button type="button" class="filter-chip" data-difficulty="beginner">Beginner</button>
+            <button type="button" class="filter-chip" data-difficulty="mid">Mid</button>
+            <button type="button" class="filter-chip active" data-difficulty="full">Full</button>
           </div>
         </div>
+        <button type="button" class="toggle-btn" id="live-uninterrupted-btn">🔁 Uninterrupted</button>
+        <div class="hint" id="live-uninterrupted-hint" style="display:none">Same note until you play it correctly · Skip to move on</div>
+        <div class="live-status" id="live-status">🎤 Tap Start to enable the microphone</div>
+        <div class="live-actions">
+          <button class="play-btn" id="live-start-btn">🎤 Start Listening</button>
+          <button class="live-skip" id="live-skip-btn" disabled>Skip</button>
+        </div>
+        <button type="button" class="undo-btn" id="live-undo-btn">↩ Undo last (wrong detection)</button>
       </div>
     </div>
   </div>
