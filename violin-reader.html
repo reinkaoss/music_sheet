@@ -299,6 +299,40 @@
     .session-stat span { font-size: .65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
     .session-weak { font-size: .78rem; color: var(--sub); margin-bottom: 12px; }
 
+    /* ── Session toast (non-blocking) ─────────────────── */
+    .session-toast {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 280;
+      padding: 10px 14px max(12px, env(safe-area-inset-bottom));
+      pointer-events: none; opacity: 0;
+      transition: opacity .3s ease;
+    }
+    .session-toast.visible { pointer-events: auto; opacity: 1; }
+    .session-toast-card {
+      max-width: 440px; margin: 0 auto;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 12px 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.45);
+      transform: translateY(110%);
+      transition: transform .38s cubic-bezier(.22,1,.36,1);
+    }
+    .session-toast.visible .session-toast-card { transform: translateY(0); }
+    .session-toast-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin-bottom: 8px;
+    }
+    .session-toast-head h2 { font-size: .92rem; color: var(--accent); margin: 0; }
+    .session-toast-dismiss {
+      padding: 5px 12px; border: none; border-radius: 99px;
+      background: var(--accent); color: #12111a;
+      font-size: .72rem; font-weight: 700; cursor: pointer; flex-shrink: 0;
+    }
+    .session-toast .session-stats {
+      grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 0 0 6px;
+    }
+    .session-toast .session-stat { padding: 6px 4px; border-radius: 8px; }
+    .session-toast .session-stat b { font-size: 1rem; }
+    .session-toast .session-weak { margin: 0; font-size: .72rem; line-height: 1.35; }
+
     /* ── Stats history ─────────────────────────────────── */
     .history-row {
       display: flex; align-items: flex-end; gap: 6px; height: 72px; margin-bottom: 8px;
@@ -515,18 +549,18 @@
   </div>
 </div>
 
-<div id="session-summary" class="overlay">
-  <div class="overlay-card">
-    <h2 id="session-title">Session complete</h2>
+<div id="session-summary" class="session-toast" aria-live="polite">
+  <div class="session-toast-card">
+    <div class="session-toast-head">
+      <h2 id="session-title">Session complete</h2>
+      <button type="button" class="session-toast-dismiss" id="session-continue">Keep going</button>
+    </div>
     <div class="session-stats">
       <div class="session-stat"><b id="sess-ok">0</b><span>Correct</span></div>
       <div class="session-stat"><b id="sess-pct">0%</b><span>Accuracy</span></div>
       <div class="session-stat"><b id="sess-n">0</b><span>Notes</span></div>
     </div>
     <div class="session-weak" id="sess-weak"></div>
-    <div class="overlay-actions">
-      <button type="button" class="overlay-btn primary" id="session-continue">Keep going</button>
-    </div>
   </div>
 </div>
 
@@ -602,6 +636,9 @@
           <button type="button" class="filter-chip active" data-difficulty="full">Full</button>
         </div>
       </div>
+      <button type="button" class="toggle-btn" id="practice-uninterrupted-btn">🔁 Uninterrupted</button>
+      <div class="hint" id="practice-uninterrupted-hint" style="display:none">Same note until correct · Skip to move on</div>
+      <button type="button" class="live-skip" id="p-skip-btn" style="display:none">Skip</button>
       <div>
         <div class="group-label">String</div>
         <div class="btn-row" id="p-str">
@@ -681,6 +718,8 @@
           <button type="button" class="filter-chip active" data-difficulty="full">Full</button>
         </div>
       </div>
+      <button type="button" class="toggle-btn" id="live-uninterrupted-btn">🔁 Uninterrupted</button>
+      <div class="hint" id="live-uninterrupted-hint" style="display:none">Same note until you play it correctly · Skip to move on</div>
       <div class="live-status" id="live-status">🎤 Tap Start to enable the microphone</div>
       <div class="live-actions">
         <button class="play-btn" id="live-start-btn">🎤 Start Listening</button>
@@ -1033,6 +1072,7 @@ function actxLegacy() {
 function unlockAudioSync() {
   try {
     if (typeof Tone !== 'undefined') {
+      Tone.start().catch(() => {});
       const tc = Tone.context;
       if (tc?.state === 'suspended') tc.resume();
       const ctx = tc?.rawContext;
@@ -1111,9 +1151,13 @@ function ensureAudio() {
   return unlockAudio().then(() => loadSamplerOnce());
 }
 
-function onUserGesture() { unlockAudioSync(); }
+function onUserGesture() {
+  unlockAudioSync();
+  loadSamplerOnce();
+}
 document.addEventListener('touchstart', onUserGesture, { passive: true, capture: true });
 document.addEventListener('click', onUserGesture, { passive: true, capture: true });
+document.addEventListener('keydown', onUserGesture, { passive: true, capture: true });
 
 document.getElementById('audio-hint')?.addEventListener('click', (e) => {
   e.stopPropagation();
@@ -1125,13 +1169,8 @@ document.getElementById('audio-hint')?.addEventListener('click', (e) => {
 
 function playToneOsc(hz, dur, vol, when) {
   try {
-    unlockAudioSync();
     const c = audioCtx();
-    let t = when != null ? when : c.currentTime + 0.02;
-    if (c.state === 'suspended') {
-      c.resume().catch(() => {});
-      t = Math.max(t, c.currentTime + 0.06);
-    }
+    const t = when != null ? when : c.currentTime + 0.02;
     vol = effectiveVol(vol);
     const o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
     o.type = 'sawtooth'; o.frequency.value = hz;
@@ -1145,20 +1184,32 @@ function playToneOsc(hz, dur, vol, when) {
   } catch (_) {}
 }
 
-function playToneInner(hz, dur, vol, when) {
-  unlockAudioSync();
-  vol = effectiveVol(vol);
+function withRunningAudio(run) {
   const c = audioCtx();
-  let t = when != null ? when : c.currentTime + 0.02;
+  const go = () => {
+    try { run(c); } catch (_) {}
+  };
   if (c.state === 'suspended') {
-    c.resume().catch(() => {});
-    t = Math.max(t, c.currentTime + 0.06);
+    const resumes = [c.resume()];
+    if (typeof Tone !== 'undefined' && Tone.context?.resume) {
+      resumes.push(Tone.context.resume());
+    }
+    Promise.all(resumes).then(go).catch(go);
+  } else {
+    go();
   }
-  if (_sampler && _audioReady) {
-    _sampler.triggerAttackRelease(hzToNote(hz), dur, t, Math.min(1, vol * 4));
-    return;
-  }
-  playToneOsc(hz, dur, vol, t);
+}
+
+function playToneInner(hz, dur, vol, when) {
+  vol = effectiveVol(vol);
+  withRunningAudio((c) => {
+    const t = when != null ? when : c.currentTime + 0.02;
+    if (_sampler && _audioReady) {
+      _sampler.triggerAttackRelease(hzToNote(hz), dur, t, Math.min(1, vol * 4));
+      return;
+    }
+    playToneOsc(hz, dur, vol, t);
+  });
 }
 
 function playTone(hz, dur = 1.2, vol = 0.15, when) {
@@ -1285,9 +1336,35 @@ const _filterChangeHooks = [];
 
 // Session tracking
 const SESSION_LEN = 10;
+const SESSION_SUMMARY_DELAY_MS = 2800;
 const HISTORY_KEY = 'violin_reader_history_v1';
 const ONBOARD_KEY = 'violin_reader_onboarded_v1';
+let _pendingSummary = null;
+let _sessionSummaryTimer = null;
+const UNINTERRUPTED_KEY = 'violin_reader_uninterrupted_v1';
+const UNINTERRUPTED_LEGACY_KEY = 'violin_reader_live_uninterrupted_v1';
+let _uninterrupted = false;
+const _uninterruptedSync = [];
 let _session = { mode: '', results: [] };
+
+function loadUninterruptedPref() {
+  try {
+    const v = localStorage.getItem(UNINTERRUPTED_KEY);
+    if (v !== null) return v === '1';
+    return localStorage.getItem(UNINTERRUPTED_LEGACY_KEY) === '1';
+  } catch { return false; }
+}
+function saveUninterruptedPref(on) {
+  try { localStorage.setItem(UNINTERRUPTED_KEY, on ? '1' : '0'); } catch {}
+}
+function isUninterrupted() { return _uninterrupted; }
+function setUninterrupted(on) {
+  _uninterrupted = on;
+  saveUninterruptedPref(on);
+  _uninterruptedSync.forEach(fn => fn());
+}
+function onUninterruptedChange(fn) { _uninterruptedSync.push(fn); }
+_uninterrupted = loadUninterruptedPref();
 
 function sessionStart(mode) {
   if (_session.mode !== mode) { _session = { mode, results: [] }; }
@@ -1297,11 +1374,33 @@ function sessionRecord(note, correct) {
   _session.results.push({
     name: note.name || pitchName(note.pos), s: note.s, f: note.f, correct,
   });
-  if (_session.results.length >= SESSION_LEN) showSessionSummary();
+  if (_session.results.length >= SESSION_LEN) {
+    _pendingSummary = { mode: _session.mode, results: [..._session.results] };
+    _session.results = [];
+    queueSessionSummary();
+  }
+}
+
+function queueSessionSummary() {
+  if (_sessionSummaryTimer) clearTimeout(_sessionSummaryTimer);
+  _sessionSummaryTimer = setTimeout(() => {
+    _sessionSummaryTimer = null;
+    showSessionSummary();
+  }, SESSION_SUMMARY_DELAY_MS);
+}
+
+function hideSessionSummary() {
+  if (_sessionSummaryTimer) {
+    clearTimeout(_sessionSummaryTimer);
+    _sessionSummaryTimer = null;
+  }
+  document.getElementById('session-summary')?.classList.remove('visible');
 }
 
 function showSessionSummary() {
-  const r = _session.results;
+  const snap = _pendingSummary;
+  if (!snap?.results?.length) return;
+  const r = snap.results;
   const ok = r.filter(x => x.correct).length;
   const pct = Math.round(ok / r.length * 100);
   const weak = {};
@@ -1318,9 +1417,9 @@ function showSessionSummary() {
     : 'Great session — no weak spots!';
   document.getElementById('session-title').textContent =
     pct >= 80 ? '🎉 Nice session!' : pct >= 50 ? '👍 Keep practicing' : '💪 Room to grow';
-  saveSessionHistory({ date: Date.now(), mode: _session.mode, ok, total: r.length, pct });
+  saveSessionHistory({ date: Date.now(), mode: snap.mode, ok, total: r.length, pct });
+  _pendingSummary = null;
   document.getElementById('session-summary').classList.add('visible');
-  _session.results = [];
 }
 
 function saveSessionHistory(entry) {
@@ -1352,9 +1451,7 @@ function initOnboarding() {
   };
 }
 
-document.getElementById('session-continue')?.addEventListener('click', () => {
-  document.getElementById('session-summary').classList.remove('visible');
-});
+document.getElementById('session-continue')?.addEventListener('click', hideSessionSummary);
 
 function loadFingerFilter() {
   try {
@@ -1654,7 +1751,7 @@ function pickWeightedNote(recentNotes) {
       const col=(i===0&&flash)?(flash==='correct'?'#4dcb78':'#e95555'):baseC;
       drawNoteAt(svg,note,NX[i],col,SOP[i]);
     });
-    if (flash && answerValid?.length && visible[0]) {
+    if (flash && answerValid?.length && visible[0] && !(flash === 'wrong' && isUninterrupted())) {
       drawStaffAnswerHint(svg, NX[0], ny(visible[0].pos), answerValid, flash);
     }
     svg.appendChild(svgEl('rect',{x:NX[2]+28,y:0,width:420-(NX[2]+28),height:250,fill:'url(#rfade)'}));
@@ -1664,9 +1761,20 @@ function pickWeightedNote(recentNotes) {
   let buf=[], answered=0;
   let selS=null, selF=null, locked=false;
   let okCnt=0, streak=0;
+  let advanceTimer=null;
 
   const fbEl=document.getElementById('p-fb');
   const hEl=document.getElementById('p-hint');
+  const skipBtn=document.getElementById('p-skip-btn');
+
+  function syncPracticeUninterruptedUI() {
+    const btn=document.getElementById('practice-uninterrupted-btn');
+    const hint=document.getElementById('practice-uninterrupted-hint');
+    const on=isUninterrupted();
+    if (btn) btn.classList.toggle('active', on);
+    if (hint) hint.style.display=on ? 'block' : 'none';
+    if (skipBtn) skipBtn.style.display=on ? 'block' : 'none';
+  }
 
   function fillBuf() {
     while (buf.length < 4) buf.push(pickWeightedNote(buf));
@@ -1688,6 +1796,7 @@ function pickWeightedNote(recentNotes) {
     document.querySelectorAll('#p-str .btn,#p-fng .btn').forEach(b=>b.disabled=v);
   }
   function advance() {
+    if (advanceTimer) { clearTimeout(advanceTimer); advanceTimer=null; }
     buf.shift();   // discard answered note
     fillBuf();     // replenish tail with weighted pick
     answered++;
@@ -1699,6 +1808,27 @@ function pickWeightedNote(recentNotes) {
     renderPractice(visible(),null);
     setLocked(false);
   }
+  function retrySameNote() {
+    advanceTimer=null;
+    resetBtns();
+    setLocked(false);
+    renderPractice(visible(), null);
+    fbEl.textContent='Try again — same note';
+    fbEl.className='fb';
+    hEl.textContent='Select string → finger';
+  }
+  function skipNote() {
+    if (advanceTimer) { clearTimeout(advanceTimer); advanceTimer=null; }
+    const note=cur();
+    if (note) {
+      streak=0;
+      recordAnswer(note, false);
+      sessionRecord(note, false);
+      playWrong();
+      document.getElementById('st-streak').textContent=0;
+    }
+    advance();
+  }
   function checkP() {
     if(selS===null||selF===null||locked) return;
     setLocked(true);
@@ -1708,6 +1838,8 @@ function pickWeightedNote(recentNotes) {
       okCnt++; streak++;
       recordAnswer(note, true);
       sessionRecord(note, true);
+      unlockAudioSync();
+      loadSamplerOnce();
       playTone(note.hz);
       document.querySelector(`#p-str [data-s="${selS}"]`)?.classList.add('correct');
       document.querySelector(`#p-fng [data-f="${selF}"]`)?.classList.add('correct');
@@ -1717,7 +1849,7 @@ function pickWeightedNote(recentNotes) {
       renderPractice(visible(),'correct',[{s:selS,f:selF}]);
       document.getElementById('st-ok').textContent=okCnt;
       document.getElementById('st-streak').textContent=streak;
-      setTimeout(advance,1100);
+      advanceTimer=setTimeout(advance,1100);
     } else {
       streak=0;
       recordAnswer(note, false);
@@ -1725,15 +1857,20 @@ function pickWeightedNote(recentNotes) {
       playWrong();
       document.querySelector(`#p-str [data-s="${selS}"]`)?.classList.add('wrong');
       document.querySelector(`#p-fng [data-f="${selF}"]`)?.classList.add('wrong');
-      valid.forEach(a=>{
-        document.querySelector(`#p-str [data-s="${a.s}"]`)?.classList.add('reveal');
-        document.querySelector(`#p-fng [data-f="${a.f}"]`)?.classList.add('reveal');
-      });
-      fbEl.innerHTML=`❌ Expected <strong>${note.name}</strong>`;
+      if (!isUninterrupted()) {
+        valid.forEach(a=>{
+          document.querySelector(`#p-str [data-s="${a.s}"]`)?.classList.add('reveal');
+          document.querySelector(`#p-fng [data-f="${a.f}"]`)?.classList.add('reveal');
+        });
+      }
+      fbEl.innerHTML=isUninterrupted()
+        ? '❌ Not quite — try again'
+        : `❌ Expected <strong>${note.name}</strong>`;
       fbEl.className='fb wrong';
-      renderPractice(visible(),'wrong',valid);
+      renderPractice(visible(),'wrong',isUninterrupted() ? null : valid);
       document.getElementById('st-streak').textContent=0;
-      setTimeout(advance,1800);
+      if (isUninterrupted()) advanceTimer=setTimeout(retrySameNote, 1600);
+      else advanceTimer=setTimeout(advance, 1800);
     }
   }
 
@@ -1780,6 +1917,13 @@ function pickWeightedNote(recentNotes) {
   onStringFilterChange(resetPracticeForFilter);
   syncStringFilterUI();
   sessionStart('practice');
+
+  syncPracticeUninterruptedUI();
+  onUninterruptedChange(syncPracticeUninterruptedUI);
+  document.getElementById('practice-uninterrupted-btn').addEventListener('click', () => {
+    setUninterrupted(!isUninterrupted());
+  });
+  skipBtn.addEventListener('click', () => skipNote());
 
   document.getElementById('p-hear-btn').addEventListener('click', () => {
     unlockAudioSync();
@@ -1880,7 +2024,7 @@ function pickWeightedNote(recentNotes) {
       const col=(i===0&&flash)?(flash==='correct'?'#4dcb78':'#e95555'):baseC;
       drawNoteAt(svg,note,NX[i],col,SOP[i]);
     });
-    if (flash && answerValid?.length && visible[0]) {
+    if (flash && answerValid?.length && visible[0] && !(flash === 'wrong' && isUninterrupted())) {
       drawStaffAnswerHint(svg, NX[0], ny(visible[0].pos), answerValid, flash);
     }
     svg.appendChild(svgEl('rect',{x:NX[2]+28,y:0,width:420-(NX[2]+28),height:250,fill:'url(#lfade)'}));
@@ -1905,6 +2049,14 @@ function pickWeightedNote(recentNotes) {
   const centsLblEl=document.getElementById('live-cents-lbl');
   let advanceTimer=null;
   let wrongPending=false;
+
+  function syncLiveUninterruptedUI() {
+    const btn=document.getElementById('live-uninterrupted-btn');
+    const hint=document.getElementById('live-uninterrupted-hint');
+    const on=isUninterrupted();
+    if (btn) btn.classList.toggle('active', on);
+    if (hint) hint.style.display=on ? 'block' : 'none';
+  }
 
   function fillBuf() {
     while (buf.length < 4) buf.push(pickWeightedNote(buf));
@@ -1979,10 +2131,28 @@ function pickWeightedNote(recentNotes) {
     fbEl.innerHTML=fbHtml;
     fbEl.className='fb ' + fbClass;
     hEl.textContent=hintText;
-    renderLiveStaff(visible(),flash, flash === 'wrong' ? valid : null);
-    if (flash === 'wrong' && valid?.length) revealLiveAnswer(valid);
-    skipBtn.disabled=true;
+    renderLiveStaff(visible(),flash, flash === 'wrong' && !isUninterrupted() ? valid : null);
+    if (flash === 'wrong' && valid?.length && !isUninterrupted()) revealLiveAnswer(valid);
     if (advanceTimer) clearTimeout(advanceTimer);
+    if (flash === 'wrong' && isUninterrupted()) {
+      wrongPending=true;
+      undoBtn.classList.add('visible');
+      skipBtn.disabled=false;
+      advanceTimer=setTimeout(() => {
+        advanceTimer=null;
+        wrongPending=false;
+        undoBtn.classList.remove('visible');
+        locked=false;
+        resetDetect();
+        resetLiveBtns();
+        renderLiveStaff(visible(), null);
+        fbEl.textContent='Try again — same note';
+        fbEl.className='fb';
+        skipBtn.disabled=!listening;
+      }, 1600);
+      return;
+    }
+    skipBtn.disabled=true;
     if (flash === 'wrong') {
       wrongPending=true;
       undoBtn.classList.add('visible');
@@ -1990,6 +2160,22 @@ function pickWeightedNote(recentNotes) {
     } else {
       advanceTimer=setTimeout(advance, 1100);
     }
+  }
+
+  function skipNote() {
+    if (!listening) return;
+    if (advanceTimer) { clearTimeout(advanceTimer); advanceTimer=null; }
+    undoBtn.classList.remove('visible');
+    wrongPending=false;
+    const note=cur();
+    if (note) {
+      streak=0;
+      recordAnswer(note, false);
+      sessionRecord(note, false);
+      playWrong();
+      document.getElementById('st-streak').textContent=0;
+    }
+    advance();
   }
 
   function onCorrect(heard) {
@@ -2017,8 +2203,12 @@ function pickWeightedNote(recentNotes) {
     document.getElementById('st-streak').textContent=0;
     const heardLabel=heard ? heard.name : 'another note';
     finishRound('wrong',
-      `❌ Expected <strong>${note.name}</strong> · heard ${heardLabel}`,
-      'wrong', note.name, valid);
+      isUninterrupted()
+        ? '❌ Not quite — try again'
+        : `❌ Expected <strong>${note.name}</strong> · heard ${heardLabel}`,
+      'wrong',
+      isUninterrupted() ? 'Try the highlighted note again' : note.name,
+      valid);
   }
 
   function detectFrame() {
@@ -2156,8 +2346,16 @@ function pickWeightedNote(recentNotes) {
   });
 
   skipBtn.addEventListener('click', () => {
-    if (locked || !listening) return;
+    if (!listening) return;
+    if (isUninterrupted()) { skipNote(); return; }
+    if (locked) return;
     onWrong(null);
+  });
+
+  syncLiveUninterruptedUI();
+  onUninterruptedChange(syncLiveUninterruptedUI);
+  document.getElementById('live-uninterrupted-btn').addEventListener('click', () => {
+    setUninterrupted(!isUninterrupted());
   });
 
   liveModeHooks.leave = stopMic;
