@@ -26,7 +26,7 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg); color: var(--text);
       display: flex; flex-direction: column; align-items: center;
-      padding: 12px 12px 48px; gap: 10px; min-height: 100%;
+      padding: 12px 12px 16px; gap: 10px; min-height: 100%;
     }
 
     /* ── Header ────────────────────────────────────────── */
@@ -93,9 +93,12 @@
     .song-staff-wrap {
       border-radius: 18px; overflow: hidden;
       box-shadow: 0 10px 40px rgba(0,0,0,.55);
-      max-height: 300px; overflow-y: auto;
-      scroll-behavior: smooth;
+      overflow-y: auto; scroll-behavior: smooth;
+      /* height driven by SVG content; cap for very long sheets */
+      max-height: calc(100vh - 300px); min-height: 80px;
     }
+    /* SVG auto-sizes to its viewBox aspect ratio — no JS height override needed */
+    .song-staff-wrap svg { display: block; width: 100%; height: auto; }
     .song-staff-wrap svg { display: block; width: 100%; }
 
     /* ── Note info row ─────────────────────────────────── */
@@ -154,17 +157,27 @@
     }
     .chip.active { border-color: var(--accent); background: #22193a; color: var(--accent); }
 
-    /* ── Play / stop button ────────────────────────────── */
+    /* ── Play / stop + quiz buttons ───────────────────── */
+    .song-actions { display: flex; gap: 8px; }
     .play-btn {
-      width: 100%; padding: 14px; border: none; border-radius: 14px;
+      flex: 1; padding: 14px; border: none; border-radius: 14px;
       background: var(--accent); color: #12111a;
-      font-size: 1rem; font-weight: 700; cursor: pointer;
+      font-size: .95rem; font-weight: 700; cursor: pointer;
       -webkit-tap-highlight-color: transparent;
-      transition: opacity .15s, transform .1s;
+      transition: background .15s, color .15s, transform .1s;
     }
     .play-btn:active { transform: scale(.98); }
     .play-btn.stop  { background: var(--surface); color: var(--red); border: 1.5px solid var(--red); }
     .play-btn:disabled { opacity: .4; cursor: default; }
+    .quiz-btn {
+      padding: 14px 18px; border: 1.5px solid var(--accent); border-radius: 14px;
+      background: transparent; color: var(--accent);
+      font-size: .95rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s;
+    }
+    .quiz-btn:active  { background: rgba(245,187,64,.1); }
+    .quiz-btn:disabled{ opacity: .4; cursor: default; }
 
     /* ── Song end overlay ──────────────────────────────── */
     .song-end {
@@ -346,8 +359,11 @@
     <span class="note-ctr" id="s-ctr">0 / 0</span>
   </div>
 
-  <!-- Play/Stop -->
-  <button class="play-btn" id="play-btn" disabled>▶ Play Song</button>
+  <!-- Listen + Quiz buttons -->
+  <div class="song-actions">
+    <button class="play-btn" id="play-btn" disabled>▶ Listen First</button>
+    <button class="quiz-btn" id="quiz-btn" disabled>🎯 Quiz</button>
+  </div>
 
   <!-- Identification controls (hidden until playing) -->
   <div id="s-controls" style="display:none; flex-direction:column; gap:9px;">
@@ -541,7 +557,8 @@ function pickWeightedNote(exclude) {
   const W=420, BLY=185, NS=9;
   const ny = pos => BLY - (pos-2)*NS;
   const STAFF_YS = [2,4,6,8,10].map(ny);
-  const NX = [140,215,283,348];
+  const SL = 48;                          // staff left (reduced — clef is now faint overlay)
+  const NX = [102,178,248,318];           // notes start sooner
   const SCOL = ['#f5bb40','#8e86b0','#6a647e','#4e4a62'];
   const SOP  = [1, 0.45, 0.28, 0.18];
 
@@ -580,17 +597,19 @@ function pickWeightedNote(exclude) {
     const fc=flash==='correct'?'rgba(77,203,120,.18)':flash==='wrong'?'rgba(233,85,85,.18)':'rgba(245,187,64,.10)';
     const sc=flash==='correct'?'rgba(77,203,120,.5)':flash==='wrong'?'rgba(233,85,85,.5)':'rgba(245,187,64,.4)';
     svg.appendChild(svgEl('rect',{x:NX[0]-24,y:cy1,width:48,height:cy2-cy1,fill:fc,rx:10,stroke:sc,'stroke-width':1.5}));
-    STAFF_YS.forEach(y=>svg.appendChild(svgEl('line',{x1:72,x2:408,y1:y,y2:y,stroke:'#aaa','stroke-width':1.2})));
-    svg.appendChild(svgEl('line',{x1:72,x2:72,y1:STAFF_YS[4],y2:STAFF_YS[0],stroke:'#aaa','stroke-width':1.8}));
-    const tc=svgEl('text',{x:5,y:ny(4)+14,'font-size':72,'font-family':"Georgia,serif",fill:'#666'});
+    // Clef drawn first so staff lines pass through it (standard notation look)
+    const tc=svgEl('text',{x:3,y:ny(4)+14,'font-size':68,'font-family':"Georgia,serif",fill:'#555',opacity:0.2});
     tc.textContent='𝄞'; svg.appendChild(tc);
+    // Lines extend from x=0 so they run seamlessly through the clef
+    STAFF_YS.forEach(y=>svg.appendChild(svgEl('line',{x1:0,x2:408,y1:y,y2:y,stroke:'#bbb','stroke-width':1.2})));
+    svg.appendChild(svgEl('line',{x1:SL,x2:SL,y1:STAFF_YS[4],y2:STAFF_YS[0],stroke:'#bbb','stroke-width':1.6}));
     visible.forEach((note,i)=>{
       if(!note) return;
       const baseC=SCOL[i];
       const col=(i===0&&flash)?(flash==='correct'?'#4dcb78':'#e95555'):baseC;
       drawNoteAt(svg,note,NX[i],col,SOP[i]);
     });
-    svg.appendChild(svgEl('rect',{x:NX[2]+30,y:0,width:420-(NX[2]+30),height:250,fill:'url(#rfade)'}));
+    svg.appendChild(svgEl('rect',{x:NX[2]+28,y:0,width:420-(NX[2]+28),height:250,fill:'url(#rfade)'}));
   }
 
   // Adaptive buffer: always keep 4 notes ready; weak notes appear more often
@@ -790,7 +809,7 @@ function gptNoteToGame(noteName, durRaw) {
   const NS_S = 8;       // px per note step
   const ROW_H= 112;     // px per staff row
   const NPR  = 7;       // notes per row
-  const TC_W = 68;      // treble clef + bar line width
+  const TC_W = 36;      // faint clef overlay — notes start much sooner
 
   // Pre-compute note x positions per column within a row
   const spc = (S_W - TC_W - 6) / NPR;  // ≈ 46.6
@@ -841,7 +860,7 @@ function gptNoteToGame(noteName, durRaw) {
     const rows  = Math.ceil(song.notes.length / NPR);
     const svgH  = rows * ROW_H + 12;
     svg.setAttribute('viewBox', `0 0 ${S_W} ${svgH}`);
-    svg.style.height = svgH + 'px'; // actual height so container scrolls
+    // height:auto in CSS — wrapper sizes itself to SVG content naturally
 
     // Background
     svg.appendChild(svgEl('rect',{x:0,y:0,width:S_W,height:svgH,fill:'#fefbf0'}));
@@ -849,17 +868,17 @@ function gptNoteToGame(noteName, durRaw) {
     // Draw each row's staff
     for (let r = 0; r < rows; r++) {
       const bly = rowBLY(r);
-      // Staff lines
+      // Ghost clef drawn first — staff lines will render on top of it
+      const tc=svgEl('text',{x:1,y:bly-(4-2)*NS_S+11,'font-size':52,'font-family':"Georgia,serif",fill:'#555',opacity:0.2});
+      tc.textContent='𝄞'; svg.appendChild(tc);
+      // Lines from x=0 so they run seamlessly through the clef glyph
       [2,4,6,8,10].forEach(pos => {
         const y = bly - (pos-2)*NS_S;
-        svg.appendChild(svgEl('line',{x1:TC_W,x2:S_W-4,y1:y,y2:y,stroke:'#aaa','stroke-width':1.1}));
+        svg.appendChild(svgEl('line',{x1:0,x2:S_W-4,y1:y,y2:y,stroke:'#c0bfba','stroke-width':1.1}));
       });
-      // Opening bar line
+      // Thin bar line marking end of clef area
       const t=bly-(8)*NS_S, b=bly;
-      svg.appendChild(svgEl('line',{x1:TC_W,x2:TC_W,y1:t,y2:b,stroke:'#aaa','stroke-width':1.6}));
-      // Treble clef
-      const tc=svgEl('text',{x:4,y:bly-(4-2)*NS_S+12,'font-size':60,'font-family':"Georgia,serif",fill:'#777'});
-      tc.textContent='𝄞'; svg.appendChild(tc);
+      svg.appendChild(svgEl('line',{x1:TC_W,x2:TC_W,y1:t,y2:b,stroke:'#bbb','stroke-width':1.4}));
     }
 
     // Draw notes + bar lines
@@ -981,6 +1000,7 @@ function gptNoteToGame(noteName, durRaw) {
   let playGen = 0; // incremented on stop to cancel pending callbacks
 
   const playBtn  = document.getElementById('play-btn');
+  const quizBtn  = document.getElementById('quiz-btn');
   const sCtrEl   = document.getElementById('s-ctr');
   const sHintEl  = document.getElementById('s-hint');
   const sFbEl    = document.getElementById('s-fb');
@@ -1001,26 +1021,36 @@ function gptNoteToGame(noteName, durRaw) {
     document.querySelectorAll('#s-str .btn,#s-fng .btn').forEach(b=>b.className='btn');
   }
 
-  function startSong() {
-    if (!activeSong) return;
-    isPlaying = true;
-    playGen++;          // invalidate any previous pending callbacks
-    const gen = playGen;
+  // Shared setup called by both startSong and startQuizDirectly
+  function _beginSession() {
+    isPlaying = true; playGen++;
     songIdx = 0; sOk = 0;
-    songEnd.classList.remove('visible');
-    sCtrl.style.display = 'none'; // hide ID controls during listen phase
-    playBtn.textContent = '⏹ Stop';
-    playBtn.classList.add('stop');
-    resetSBtns(); sStat();
     noteGroups.forEach((_,i) => colorNote(i, '#888'));
     moveCursor(-1);
-    sHintEl.textContent = '🎵 Listen to the whole song…';
-    sFbEl.textContent = '';
-    sFbEl.className = 'fb';
-    // Scroll back to top
+    songEnd.classList.remove('visible');
+    sCtrl.style.display = 'none';
+    playBtn.textContent = '⏹ Stop'; playBtn.classList.add('stop');
+    quizBtn.style.display = 'none'; // hide quiz btn while a session is running
+    resetSBtns(); sStat();
+    sFbEl.textContent = ''; sFbEl.className = 'fb';
     document.getElementById('song-staff-wrap').scrollTo({top:0, behavior:'smooth'});
-    // Kick off playthrough
+  }
+
+  function startSong() {
+    if (!activeSong || isPlaying) return;
+    _beginSession();
+    const gen = playGen;
+    sHintEl.textContent = '🎵 Listen to the whole song…';
     playthroughNote(0, gen);
+  }
+
+  // Skip listen-through, go straight to note identification
+  function startQuizDirectly() {
+    if (!activeSong || isPlaying) return;
+    _beginSession();
+    const gen = playGen;
+    sHintEl.textContent = '🎯 Identify each note!';
+    startIdentification(gen);
   }
 
   // Auto-plays every note in sequence, then launches the ID game
@@ -1056,12 +1086,15 @@ function gptNoteToGame(noteName, durRaw) {
     playCurrentNote();
   }
 
+  function _restoreButtons() {
+    playBtn.textContent = '▶ Listen First'; playBtn.classList.remove('stop');
+    quizBtn.style.display = '';
+  }
+
   function stopSong() {
-    isPlaying = false;
-    playGen++; // cancel any running playthrough
+    isPlaying = false; playGen++;
     sCtrl.style.display = 'none';
-    playBtn.textContent = '▶ Play Song';
-    playBtn.classList.remove('stop');
+    _restoreButtons();
     moveCursor(-1);
     sHintEl.textContent = activeSong
       ? `${activeSong.title} · ${activeSong.notes.length} notes`
@@ -1092,8 +1125,7 @@ function gptNoteToGame(noteName, durRaw) {
   function finishSong() {
     isPlaying = false;
     sCtrl.style.display = 'none';
-    playBtn.textContent = '▶ Play Song';
-    playBtn.classList.remove('stop');
+    _restoreButtons();
     moveCursor(-1);
     sStat();
     // Show end card
@@ -1163,8 +1195,8 @@ function gptNoteToGame(noteName, durRaw) {
       playBtn.style.display = '';
       songEnd.classList.remove('visible');
       sCtrl.style.display = 'none';
-      playBtn.disabled = false;
-      playBtn.textContent = '▶ Play Song';
+      playBtn.disabled = false; quizBtn.disabled = false;
+      playBtn.textContent = '▶ Listen First';
       playBtn.classList.remove('stop');
       sHintEl.textContent = `${song.title} · ${song.notes.length} notes`;
       sStat();
@@ -1248,6 +1280,11 @@ function gptNoteToGame(noteName, durRaw) {
     try { b64 = await resizeAndEncode(file); }
     catch { setUploadStatus('error', '❌ Could not read the image.'); return; }
 
+    if (window.location.protocol === 'file:') {
+      setUploadStatus('error', '❌ Upload requires the deployed site. Open <strong>musicsheets.netlify.app</strong> instead of the local file.');
+      return;
+    }
+
     setUploadStatus('loading', 'Sending to GPT-4o — reading notes…');
 
     let result;
@@ -1293,8 +1330,8 @@ function gptNoteToGame(noteName, durRaw) {
       songEnd.classList.remove('visible');
       sCtrl.style.display = 'none';
       document.getElementById('song-staff-wrap').style.display = '';
-      playBtn.style.display = '';
-      playBtn.textContent = '▶ Play Song';
+      playBtn.style.display = ''; quizBtn.style.display = '';
+      playBtn.textContent = '▶ Listen First';
       playBtn.classList.remove('stop');
       playBtn.disabled = false;
       sHintEl.textContent = `${newSong.title} · ${newSong.notes.length} notes`;
@@ -1328,10 +1365,13 @@ function gptNoteToGame(noteName, durRaw) {
   // Auto-select first song
   chipsEl.querySelector('.chip')?.click();
 
-  // ── Play/Stop button ──────────────────────────────────
+  // ── Play/Stop + Quiz buttons ──────────────────────────
   playBtn.addEventListener('click', () => {
     if (isPlaying) stopSong();
     else startSong();
+  });
+  quizBtn.addEventListener('click', () => {
+    if (!isPlaying) startQuizDirectly();
   });
 
   // ── Answer buttons ────────────────────────────────────
