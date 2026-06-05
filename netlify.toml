@@ -1,0 +1,15 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# Serve violin-reader.html at the root URL
+[[redirects]]
+  from = "/"
+  to   = "/violin-reader.html"
+  status = 200
+
+# Proxy /api/* to Netlify Functions
+[[redirects]]
+  from = "/api/:func"
+  to   = "/.netlify/functions/:func"
+  status = 200
