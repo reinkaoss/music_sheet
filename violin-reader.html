@@ -280,9 +280,33 @@
       background: rgba(28, 26, 46, 0.94); border: 1px solid var(--accent);
       color: var(--text); font-size: .78rem; font-weight: 600; text-align: center;
       box-shadow: 0 8px 32px rgba(0,0,0,.45);
-      pointer-events: none;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
     .audio-hint.hidden { display: none; }
+
+    /* ── Live mode ─────────────────────────────────────── */
+    .live-status {
+      padding: 10px 12px; border-radius: 12px; text-align: center;
+      font-size: .78rem; font-weight: 600; color: var(--sub);
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    .live-status.listening { color: var(--accent); border-color: rgba(245,187,64,.35); background: rgba(245,187,64,.08); }
+    .live-status.error { color: var(--red); border-color: rgba(233,85,85,.35); background: rgba(233,85,85,.08); }
+    .live-pitch {
+      text-align: center; font-size: 1.35rem; font-weight: 800;
+      color: var(--muted); letter-spacing: .02em; min-height: 1.6rem;
+    }
+    .live-pitch.heard { color: var(--accent); }
+    .live-pitch.match { color: var(--green); }
+    .live-pitch.wrong { color: var(--red); }
+    .live-actions { display: flex; gap: 8px; }
+    .live-actions .play-btn { flex: 1; }
+    .live-skip {
+      padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 14px;
+      background: var(--surface); color: var(--sub);
+      font-size: .85rem; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
   </style>
 </head>
 <body>
@@ -299,11 +323,12 @@
   </div>
 </header>
 
-<div id="audio-hint" class="audio-hint">🔊 Tap anywhere to enable sound</div>
+<div id="audio-hint" class="audio-hint" role="button" tabindex="0">🔊 Tap to enable sound</div>
 
 <!-- ── Tab bar ──────────────────────────────────────────── -->
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="practice">🎲 Practice</button>
+  <button class="tab-btn"        data-tab="live">🎤 Live</button>
   <button class="tab-btn"        data-tab="songs">🎵 Songs</button>
   <button class="tab-btn"        data-tab="stats">📊 Stats</button>
 </div>
@@ -349,6 +374,35 @@
   <div class="hint">Tap string + finger · 🔊 plays on correct</div>
 
 </div><!-- /tab-practice -->
+
+<!-- ═══════════════════════════════════════════════════════
+     TAB — LIVE (microphone)
+     ═══════════════════════════════════════════════════════ -->
+<div id="tab-live" class="tab-panel">
+
+  <div class="progress-track"><div class="progress-fill" id="l-progress"></div></div>
+
+  <div class="staff-wrap">
+    <svg id="l-staff" viewBox="0 0 420 250" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <div class="note-row">
+    <span class="note-tag" id="l-hint">Play the highlighted note on your violin</span>
+    <span class="note-ctr" id="l-ctr">♩ 1</span>
+  </div>
+
+  <div class="live-pitch" id="live-pitch">—</div>
+  <div class="live-status" id="live-status">🎤 Tap Start to enable the microphone</div>
+
+  <div class="live-actions">
+    <button class="play-btn" id="live-start-btn">🎤 Start Listening</button>
+    <button class="live-skip" id="live-skip-btn" disabled>Skip</button>
+  </div>
+
+  <div class="fb-wrap"><div class="fb" id="l-fb">Hold a steady note — we'll detect the pitch</div></div>
+  <div class="hint">Quiet room · bow close to the mic · G3–B5 range</div>
+
+</div><!-- /tab-live -->
 
 <!-- ═══════════════════════════════════════════════════════
      TAB 2 — SONGS
@@ -505,14 +559,73 @@ const STR_COL = { G:'#4dcb78', D:'#7062ab', A:'#f5bb40', E:'#e8834a' };
 
 function msPerBeatFromBpm(bpm) { return 60000 / bpm; }
 
+// ── PITCH DETECTION (live / mic mode) ───────────────────
+const liveModeHooks = { leave: null };
+
+function detectPitchHz(analyser, sampleRate) {
+  const SIZE = analyser.fftSize;
+  const buf = new Float32Array(SIZE);
+  analyser.getFloatTimeDomainData(buf);
+
+  let rms = 0;
+  for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / SIZE);
+  if (rms < 0.006) return null;
+
+  const c = new Float32Array(SIZE);
+  for (let i = 0; i < SIZE; i++) {
+    for (let j = 0; j < SIZE - i; j++) c[i] += buf[j] * buf[j + i];
+  }
+
+  let d = 1;
+  while (d < SIZE - 1 && c[d] > c[d + 1]) d++;
+
+  let peak = d, peakVal = c[d];
+  for (let i = d + 1; i < SIZE; i++) {
+    if (c[i] > peakVal) { peakVal = c[i]; peak = i; }
+  }
+  if (peak < 2) return null;
+
+  const hz = sampleRate / peak;
+  if (hz < 170 || hz > 1100) return null;
+  return hz;
+}
+
+function matchPitchToNote(hz) {
+  if (!hz) return null;
+  let best = null, bestCents = Infinity;
+  for (const n of NOTES) {
+    const cents = Math.abs(1200 * Math.log2(hz / n.hz));
+    if (cents < bestCents) { bestCents = cents; best = n; }
+  }
+  return bestCents <= 45 ? best : null;
+}
+
+function centsOff(hz, targetHz) {
+  return Math.abs(1200 * Math.log2(hz / targetHz));
+}
+
 // ── SHARED AUDIO (Tone.js violin sampler + oscillator fallback) ──
 const SF_BASE = 'https://gleitz.github.io/midi-js-soundfonts/MusyngKite/violin-mp3/';
 let _sampler = null, _audioReady = false, _audioFailed = false, _audioLoad = null;
-let _audioUnlocked = false;
 const SF_TIMEOUT_MS = 10000;
+const _isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 function hideAudioHint() {
   document.getElementById('audio-hint')?.classList.add('hidden');
+}
+
+function isAudioRunning() {
+  try { return audioCtx().state === 'running'; } catch (_) { return false; }
+}
+
+function effectiveVol(vol) {
+  return _isMobile ? Math.max(vol, 0.32) : vol;
+}
+
+function audioDest() {
+  if (typeof Tone !== 'undefined' && Tone.getDestination) return Tone.getDestination();
+  return audioCtx().destination;
 }
 
 function hzToNote(hz) {
@@ -530,9 +643,37 @@ function actxLegacy() {
   return _legacyActx;
 }
 
-/** Mobile Safari blocks audio until a user gesture unlocks the context. */
+/** iOS/Safari: resume + silent buffer must run synchronously inside the tap handler. */
+function unlockAudioSync() {
+  try {
+    if (typeof Tone !== 'undefined') {
+      const tc = Tone.context;
+      if (tc?.state === 'suspended') tc.resume();
+      const ctx = tc?.rawContext;
+      if (ctx) {
+        if (ctx.state === 'suspended') ctx.resume();
+        const buf = ctx.createBuffer(1, 1, ctx.sampleRate || 44100);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        src.start(0);
+      }
+    } else {
+      const c = actxLegacy();
+      if (c.state === 'suspended') c.resume();
+      const buf = c.createBuffer(1, 1, c.sampleRate);
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      src.connect(c.destination);
+      src.start(0);
+    }
+  } catch (_) {}
+  if (isAudioRunning()) hideAudioHint();
+}
+
+/** Async follow-up — keeps trying until the context is running. */
 async function unlockAudio() {
-  if (_audioUnlocked) return;
+  unlockAudioSync();
   try {
     if (typeof Tone !== 'undefined') await Tone.start();
     const legacy = actxLegacy();
@@ -540,8 +681,7 @@ async function unlockAudio() {
     if (typeof Tone !== 'undefined' && Tone.context?.state === 'suspended') {
       await Tone.context.resume();
     }
-    _audioUnlocked = true;
-    hideAudioHint();
+    if (isAudioRunning()) hideAudioHint();
   } catch (_) {}
 }
 
@@ -560,7 +700,7 @@ function loadSampler() {
         baseUrl: SF_BASE,
         onload: () => { clearTimeout(timer); done(true); },
       }).toDestination();
-      _sampler.volume.value = -4;
+      _sampler.volume.value = _isMobile ? 0 : -4;
     } catch (e) {
       clearTimeout(timer);
       reject(e);
@@ -573,6 +713,7 @@ function loadSamplerOnce() {
   if (_audioLoad) return _audioLoad;
   if (typeof Tone === 'undefined') { _audioFailed = true; return Promise.resolve(); }
 
+  unlockAudioSync();
   _audioLoad = loadSampler()
     .then(() => { _audioReady = true; })
     .catch(() => { _audioFailed = true; _sampler = null; });
@@ -580,17 +721,32 @@ function loadSamplerOnce() {
 }
 
 function ensureAudio() {
+  unlockAudioSync();
   return unlockAudio().then(() => loadSamplerOnce());
 }
 
-// Unlock on first tap — required for iOS / Android Chrome
-document.addEventListener('pointerdown', () => { unlockAudio(); }, { passive: true, capture: true });
+function onUserGesture() { unlockAudioSync(); }
+document.addEventListener('touchstart', onUserGesture, { passive: true, capture: true });
+document.addEventListener('click', onUserGesture, { passive: true, capture: true });
+
+document.getElementById('audio-hint')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  unlockAudioSync();
+  playToneInner(440, 0.3, _isMobile ? 0.45 : 0.22);
+  loadSamplerOnce();
+  unlockAudio();
+});
 
 function playToneOsc(hz, dur, vol, when) {
   try {
+    unlockAudioSync();
     const c = audioCtx();
-    if (c.state === 'suspended') return;
-    const t = when != null ? when : c.currentTime + 0.02;
+    let t = when != null ? when : c.currentTime + 0.02;
+    if (c.state === 'suspended') {
+      c.resume().catch(() => {});
+      t = Math.max(t, c.currentTime + 0.06);
+    }
+    vol = effectiveVol(vol);
     const o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
     o.type = 'sawtooth'; o.frequency.value = hz;
     f.type = 'lowpass'; f.frequency.value = Math.min(hz * 5, 8000); f.Q.value = 0.7;
@@ -598,25 +754,32 @@ function playToneOsc(hz, dur, vol, when) {
     g.gain.linearRampToValueAtTime(vol, t + 0.025);
     g.gain.setValueAtTime(vol, t + 0.12);
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    o.connect(f); f.connect(g); g.connect(c.destination);
+    o.connect(f); f.connect(g); g.connect(audioDest());
     o.start(t); o.stop(t + dur + 0.1);
   } catch (_) {}
 }
 
 function playToneInner(hz, dur, vol, when) {
-  const t = when != null ? when : audioCtx().currentTime + 0.02;
+  unlockAudioSync();
+  vol = effectiveVol(vol);
+  const c = audioCtx();
+  let t = when != null ? when : c.currentTime + 0.02;
+  if (c.state === 'suspended') {
+    c.resume().catch(() => {});
+    t = Math.max(t, c.currentTime + 0.06);
+  }
   if (_sampler && _audioReady) {
-    _sampler.triggerAttackRelease(hzToNote(hz), dur, t, Math.min(1, vol * 5));
+    _sampler.triggerAttackRelease(hzToNote(hz), dur, t, Math.min(1, vol * 4));
     return;
   }
   playToneOsc(hz, dur, vol, t);
 }
 
 function playTone(hz, dur = 1.2, vol = 0.15, when) {
-  unlockAudio().then(() => {
-    loadSamplerOnce();
-    playToneInner(hz, dur, vol, when);
-  });
+  unlockAudioSync();
+  loadSamplerOnce();
+  playToneInner(hz, dur, vol, when);
+  unlockAudio();
 }
 
 function stopAllNotes() {
@@ -626,19 +789,23 @@ function stopAllNotes() {
 }
 
 function playWrong() {
-  unlockAudio().then(() => {
-    try {
-      const c = audioCtx();
-      if (c.state === 'suspended') return;
-      const t = c.currentTime;
-      const o = c.createOscillator(), g = c.createGain();
-      o.type = 'sawtooth';
-      o.frequency.setValueAtTime(180, t); o.frequency.linearRampToValueAtTime(90, t + 0.18);
-      g.gain.setValueAtTime(0.09, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-      o.connect(g); g.connect(c.destination);
-      o.start(t); o.stop(t + 0.25);
-    } catch (_) {}
-  });
+  unlockAudioSync();
+  try {
+    const c = audioCtx();
+    let t = c.currentTime + 0.02;
+    if (c.state === 'suspended') {
+      c.resume().catch(() => {});
+      t = c.currentTime + 0.06;
+    }
+    const vol = effectiveVol(0.12);
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(180, t); o.frequency.linearRampToValueAtTime(90, t + 0.18);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    o.connect(g); g.connect(audioDest());
+    o.start(t); o.stop(t + 0.25);
+  } catch (_) {}
+  unlockAudio();
 }
 
 // ── SHARED SVG HELPER ─────────────────────────────────────
@@ -650,9 +817,12 @@ function svgEl(tag, attrs) {
 }
 
 // ── TAB SWITCHING ─────────────────────────────────────────
-const TAB_ORDER = ['practice', 'songs', 'stats'];
+const TAB_ORDER = ['practice', 'live', 'songs', 'stats'];
 
 function switchTab(name) {
+  const prev = document.querySelector('.tab-panel.active')?.id?.replace('tab-', '');
+  if (prev === 'live') liveModeHooks.leave?.();
+
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === name);
   });
@@ -881,6 +1051,259 @@ function pickWeightedNote(exclude) {
   fillBuf();
   setProgress();
   renderPractice(visible(),null);
+})();
+
+// ═══════════════════════════════════════════════════════════
+//  LIVE MODE (microphone pitch detection)
+// ═══════════════════════════════════════════════════════════
+(function() {
+  const W=420, BLY=185, NS=9;
+  const ny = pos => BLY - (pos-2)*NS;
+  const STAFF_YS = [2,4,6,8,10].map(ny);
+  const SL = 48;
+  const NX = [102,178,248,318];
+  const SCOL = ['#f5bb40','#8e86b0','#6a647e','#4e4a62'];
+  const SOP  = [1, 0.45, 0.28, 0.18];
+  const STABLE_CORRECT = 7;
+  const STABLE_WRONG = 50;
+
+  function drawNoteAt(svg, note, x, color, opacity) {
+    if (!note) return;
+    const y=ny(note.pos), g=svgEl('g',{opacity});
+    const LHW=15;
+    if (note.pos<2) {
+      const low=note.pos%2===0?note.pos:note.pos+1;
+      for(let p=0;p>=low&&p<=0;p-=2)
+        g.appendChild(svgEl('line',{x1:x-LHW,x2:x+LHW,y1:ny(p),y2:ny(p),stroke:color,'stroke-width':1.3}));
+    }
+    if (note.pos>10) {
+      const hi=note.pos%2===0?note.pos:note.pos-1;
+      for(let p=12;p<=hi;p+=2)
+        g.appendChild(svgEl('line',{x1:x-LHW,x2:x+LHW,y1:ny(p),y2:ny(p),stroke:color,'stroke-width':1.3}));
+    }
+    if (note.acc && noteNeedsAccidental(note))
+      g.appendChild(Object.assign(svgEl('text',{class:'nacc',x:x-17,y:y+5,'font-size':17,'font-family':"Georgia,serif",fill:color,'text-anchor':'middle'}),{textContent:'♯'}));
+    const up=note.pos<6;
+    g.appendChild(svgEl('ellipse',{cx:x,cy:y,rx:9,ry:6.5,fill:color,transform:`rotate(-15,${x},${y})`}));
+    const sx=up?x+7.5:x-7.5, sy2=up?y-NS*7:y+NS*7;
+    g.appendChild(svgEl('line',{x1:sx,x2:sx,y1:y,y2:sy2,stroke:color,'stroke-width':1.7}));
+    svg.appendChild(g);
+  }
+
+  function renderLiveStaff(visible, flash) {
+    const svg=document.getElementById('l-staff');
+    svg.innerHTML='';
+    const defs=svgEl('defs',{}), gr=svgEl('linearGradient',{id:'lfade',x1:0,x2:1,y1:0,y2:0});
+    gr.appendChild(svgEl('stop',{offset:'0%','stop-color':'#fefbf0','stop-opacity':0}));
+    gr.appendChild(svgEl('stop',{offset:'100%','stop-color':'#fefbf0','stop-opacity':1}));
+    defs.appendChild(gr); svg.appendChild(defs);
+    svg.appendChild(svgEl('rect',{x:0,y:0,width:420,height:250,fill:'#fefbf0'}));
+    const cy1=STAFF_YS[4]-18, cy2=STAFF_YS[0]+18;
+    const fc=flash==='correct'?'rgba(77,203,120,.18)':flash==='wrong'?'rgba(233,85,85,.18)':'rgba(245,187,64,.10)';
+    const sc=flash==='correct'?'rgba(77,203,120,.5)':flash==='wrong'?'rgba(233,85,85,.5)':'rgba(245,187,64,.4)';
+    svg.appendChild(svgEl('rect',{x:NX[0]-24,y:cy1,width:48,height:cy2-cy1,fill:fc,rx:10,stroke:sc,'stroke-width':1.5}));
+    const tc=svgEl('text',{x:3,y:ny(4)+14,'font-size':68,'font-family':"Georgia,serif",fill:'#555',opacity:0.2});
+    tc.textContent='𝄞'; svg.appendChild(tc);
+    STAFF_YS.forEach(y=>svg.appendChild(svgEl('line',{x1:0,x2:408,y1:y,y2:y,stroke:'#bbb','stroke-width':1.2})));
+    svg.appendChild(svgEl('line',{x1:SL,x2:SL,y1:STAFF_YS[4],y2:STAFF_YS[0],stroke:'#bbb','stroke-width':1.6}));
+    visible.forEach((note,i)=>{
+      if(!note) return;
+      const baseC=SCOL[i];
+      const col=(i===0&&flash)?(flash==='correct'?'#4dcb78':'#e95555'):baseC;
+      drawNoteAt(svg,note,NX[i],col,SOP[i]);
+    });
+    svg.appendChild(svgEl('rect',{x:NX[2]+28,y:0,width:420-(NX[2]+28),height:250,fill:'url(#lfade)'}));
+  }
+
+  let buf=[], answered=0, locked=false;
+  let okCnt=0, streak=0;
+  let stableCount=0, wrongCount=0;
+
+  let micStream=null, micCtx=null, micOwnsCtx=false, analyser=null, listening=false, rafId=null;
+
+  const fbEl=document.getElementById('l-fb');
+  const hEl=document.getElementById('l-hint');
+  const pitchEl=document.getElementById('live-pitch');
+  const statusEl=document.getElementById('live-status');
+  const startBtn=document.getElementById('live-start-btn');
+  const skipBtn=document.getElementById('live-skip-btn');
+
+  function fillBuf() {
+    while (buf.length < 4) buf.push(pickWeightedNote(buf[buf.length-1] ?? null));
+  }
+  function visible() { return buf.slice(0,4); }
+  function cur() { return buf[0]; }
+
+  function setProgress() {
+    document.getElementById('l-progress').style.width=((answered%NOTES.length)/NOTES.length*100)+'%';
+    document.getElementById('l-ctr').textContent='♩ '+(answered+1);
+  }
+
+  function resetDetect() {
+    stableCount=0; wrongCount=0;
+    pitchEl.textContent='—';
+    pitchEl.className='live-pitch';
+  }
+
+  function advance() {
+    buf.shift();
+    fillBuf();
+    answered++;
+    locked=false;
+    fbEl.textContent='Hold a steady note — we\'ll detect the pitch';
+    fbEl.className='fb';
+    hEl.textContent='Play the highlighted note on your violin';
+    setProgress();
+    renderLiveStaff(visible(),null);
+    resetDetect();
+    skipBtn.disabled=!listening;
+  }
+
+  function finishRound(flash, fbHtml, fbClass, hintText) {
+    locked=true;
+    fbEl.innerHTML=fbHtml;
+    fbEl.className='fb ' + fbClass;
+    hEl.textContent=hintText;
+    renderLiveStaff(visible(),flash);
+    skipBtn.disabled=true;
+    setTimeout(advance, flash==='correct' ? 1100 : 1800);
+  }
+
+  function onCorrect(heard) {
+    const note=cur();
+    const valid=PITCH_MAP[note.pos]||[];
+    okCnt++; streak++;
+    recordAnswer(note, true);
+    playTone(note.hz);
+    document.getElementById('st-ok').textContent=okCnt;
+    document.getElementById('st-streak').textContent=streak;
+    const ans=valid.map(a=>`${a.s} str, f${a.f}`).join(' or ');
+    finishRound('correct',
+      `✅ <strong>${note.name}</strong> · heard ${heard.name}${ans ? ' · ' + ans : ''}`,
+      'correct', note.name);
+  }
+
+  function onWrong(heard) {
+    const note=cur();
+    const valid=PITCH_MAP[note.pos]||[];
+    streak=0;
+    recordAnswer(note, false);
+    playWrong();
+    document.getElementById('st-streak').textContent=0;
+    const heardLabel=heard ? heard.name : 'another note';
+    finishRound('wrong',
+      `❌ Expected <strong>${note.name}</strong> · heard ${heardLabel} · ${valid.map(a=>`${a.s} str, f${a.f}`).join(' or ')}`,
+      'wrong', note.name);
+  }
+
+  function detectLoop() {
+    if (!listening) return;
+    if (!locked && analyser && micCtx) {
+      const hz=detectPitchHz(analyser, micCtx.sampleRate);
+      const target=cur();
+      if (!hz) {
+        pitchEl.textContent='—';
+        pitchEl.className='live-pitch';
+        stableCount=0;
+        wrongCount=0;
+      } else {
+        const heard=matchPitchToNote(hz);
+        if (heard) {
+          const cents=centsOff(hz, heard.hz);
+          pitchEl.textContent=heard.name + (cents > 12 ? ' ~' : '');
+          if (heard.pos===target.pos) {
+            pitchEl.className='live-pitch match';
+            stableCount++;
+            wrongCount=0;
+            if (stableCount>=STABLE_CORRECT) onCorrect(heard);
+          } else {
+            pitchEl.className='live-pitch wrong';
+            stableCount=0;
+            wrongCount++;
+            if (wrongCount>=STABLE_WRONG) onWrong(heard);
+          }
+        } else {
+          pitchEl.textContent=Math.round(hz)+' Hz';
+          pitchEl.className='live-pitch heard';
+          stableCount=0;
+          wrongCount=0;
+        }
+      }
+    }
+    rafId=requestAnimationFrame(detectLoop);
+  }
+
+  async function startMic() {
+    if (listening) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      statusEl.textContent='Microphone not supported in this browser';
+      statusEl.className='live-status error';
+      return;
+    }
+    startBtn.disabled=true;
+    statusEl.textContent='Requesting microphone…';
+    statusEl.className='live-status';
+    try {
+      unlockAudioSync();
+      await unlockAudio();
+      micStream=await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+      micCtx=audioCtx();
+      micOwnsCtx=false;
+      if (micCtx.state === 'suspended') await micCtx.resume();
+      analyser=micCtx.createAnalyser();
+      analyser.fftSize=4096;
+      analyser.smoothingTimeConstant=0.2;
+      micCtx.createMediaStreamSource(micStream).connect(analyser);
+      listening=true;
+      startBtn.textContent='⏹ Stop';
+      startBtn.disabled=false;
+      skipBtn.disabled=locked;
+      statusEl.textContent='Listening — play the highlighted note';
+      statusEl.className='live-status listening';
+      detectLoop();
+    } catch (err) {
+      statusEl.textContent=err.name==='NotAllowedError'
+        ? 'Microphone blocked — allow access in browser settings'
+        : 'Could not start microphone';
+      statusEl.className='live-status error';
+      startBtn.disabled=false;
+    }
+  }
+
+  function stopMic() {
+    listening=false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId=null; }
+    if (micStream) micStream.getTracks().forEach(t=>t.stop());
+    micStream=null;
+    analyser=null;
+    if (micOwnsCtx && micCtx) { micCtx.close().catch(()=>{}); }
+    micCtx=null;
+    micOwnsCtx=false;
+    startBtn.textContent='🎤 Start Listening';
+    skipBtn.disabled=true;
+    statusEl.textContent='🎤 Tap Start to enable the microphone';
+    statusEl.className='live-status';
+    resetDetect();
+  }
+
+  startBtn.addEventListener('click', () => {
+    unlockAudioSync();
+    if (listening) stopMic();
+    else startMic();
+  });
+
+  skipBtn.addEventListener('click', () => {
+    if (locked || !listening) return;
+    onWrong(null);
+  });
+
+  liveModeHooks.leave = stopMic;
+
+  fillBuf();
+  setProgress();
+  renderLiveStaff(visible(),null);
 })();
 
 // ═══════════════════════════════════════════════════════════
@@ -1473,12 +1896,13 @@ function pickWeightedNote(exclude) {
 
   function startSong() {
     if (!activeSong || isPlaying) return;
+    unlockAudioSync();
     _beginSession();
     const gen = playGen;
     sHintEl.textContent = '🎵 Listen to the whole song…';
+    loadSamplerOnce();
     unlockAudio().finally(() => {
       if (gen !== playGen || !isPlaying) return;
-      loadSamplerOnce();
       playthroughNote(0, gen);
     });
   }
@@ -1515,11 +1939,13 @@ function pickWeightedNote(exclude) {
   // Skip listen-through, go straight to note identification
   function startQuizDirectly() {
     if (!activeSong || isPlaying) return;
+    unlockAudioSync();
     _beginSession();
     const gen = playGen;
     sHintEl.textContent = '🎯 Identify each note!';
+    loadSamplerOnce();
     unlockAudio().finally(() => {
-      loadSamplerOnce();
+      if (gen !== playGen || !isPlaying) return;
       startIdentification(gen);
     });
   }
