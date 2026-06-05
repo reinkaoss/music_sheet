@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d0c18">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%230d0c18' width='100' height='100' rx='20'/%3E%3Ctext x='50' y='62' font-size='48' text-anchor='middle'%3E🎻%3C/text%3E%3C/svg%3E">
   <title>Violin Sheet Reader</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -132,7 +137,11 @@
     .btn.correct  .btn-sub { color: rgba(77,203,120,.55); }
     .btn.wrong    { border-color: var(--red);   background: #2a0e0e; color: var(--red);   animation: shake .35s ease; }
     .btn.wrong    .btn-sub { color: rgba(233,85,85,.55); }
+    .btn.reveal   { border-color: var(--red); background: #2a0e0e; color: var(--red); animation: fadeUp .2s ease; }
+    .btn.reveal   .btn-sub { color: rgba(233,85,85,.55); }
     .btn:disabled { opacity: .3; cursor: default; pointer-events: none; }
+    .btn.wrong:disabled, .btn.reveal:disabled, .btn.correct:disabled { opacity: 1; }
+    .live-ref .btn { pointer-events: none; cursor: default; opacity: 1; }
 
     /* ── Feedback ──────────────────────────────────────── */
     .fb-wrap { min-height: 42px; display: flex; align-items: center; justify-content: center; }
@@ -203,7 +212,7 @@
     .tempo-label { font-size: .72rem; color: var(--muted); min-width: 58px; text-align: right; }
 
     /* ── Staff toggles ─────────────────────────────────── */
-    .staff-toggles { display: flex; gap: 7px; flex-wrap: wrap; }
+    .staff-toggles { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
     .toggle-btn {
       padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 99px;
       background: var(--surface); color: var(--sub);
@@ -212,6 +221,101 @@
       transition: border-color .14s, background .14s, color .14s;
     }
     .toggle-btn.active { border-color: var(--accent); background: #22193a; color: var(--accent); }
+
+    /* ── String filter (practice / live) ───────────────── */
+    .string-filter-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .filter-chip {
+      padding: 6px 11px; border: 1.5px solid var(--border); border-radius: 99px;
+      background: var(--surface); color: var(--sub);
+      font-size: .72rem; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color .14s, background .14s, color .14s;
+    }
+    .filter-chip.active { background: #22193a; }
+    .filter-chip[data-str="G"].active { border-color: #4dcb78; color: #4dcb78; }
+    .filter-chip[data-str="D"].active { border-color: #7062ab; color: #7062ab; }
+    .filter-chip[data-str="A"].active { border-color: #f5bb40; color: #f5bb40; }
+    .filter-chip[data-str="E"].active { border-color: #e8834a; color: #e8834a; }
+    .filter-chip[data-preset="all"].active { border-color: var(--accent); color: var(--accent); }
+    .filter-count { font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; }
+    .filter-chip[data-finger="0"].active { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Hear note + cents meter ───────────────────────── */
+    .hear-btn {
+      padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 12px;
+      background: var(--surface); color: var(--sub); font-size: .78rem; font-weight: 600;
+      cursor: pointer; width: 100%; -webkit-tap-highlight-color: transparent;
+    }
+    .hear-btn:active { background: var(--card); }
+    .cents-meter { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+    .cents-bar {
+      position: relative; width: 100%; max-width: 280px; height: 8px;
+      background: var(--border); border-radius: 99px; overflow: hidden;
+    }
+    .cents-bar::before {
+      content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px;
+      background: var(--muted); transform: translateX(-50%); z-index: 1;
+    }
+    .cents-needle {
+      position: absolute; top: 0; bottom: 0; width: 14px; margin-left: -7px;
+      background: var(--accent); border-radius: 4px; left: 50%;
+      transition: left .06s linear, background .12s;
+    }
+    .cents-needle.match { background: var(--green); }
+    .cents-needle.wrong { background: var(--red); }
+    .cents-lbl { font-size: .68rem; color: var(--muted); font-weight: 600; }
+    .undo-btn {
+      padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+      background: var(--surface); color: var(--sub); font-size: .75rem; font-weight: 600;
+      cursor: pointer; width: 100%; display: none;
+    }
+    .undo-btn.visible { display: block; }
+
+    /* ── Overlays (onboarding, session) ──────────────── */
+    .overlay {
+      position: fixed; inset: 0; z-index: 300; display: none;
+      align-items: center; justify-content: center; padding: 20px;
+      background: rgba(8, 7, 14, 0.82); backdrop-filter: blur(6px);
+    }
+    .overlay.visible { display: flex; }
+    .overlay-card {
+      width: 100%; max-width: 400px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 22px 20px; text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,.55);
+    }
+    .overlay-card h2 { font-size: 1.2rem; color: var(--accent); margin-bottom: 10px; }
+    .overlay-card p { font-size: .84rem; color: var(--sub); line-height: 1.5; margin-bottom: 14px; text-align: left; }
+    .overlay-card ul { text-align: left; font-size: .8rem; color: var(--sub); margin: 0 0 14px 18px; line-height: 1.55; }
+    .overlay-actions { display: flex; gap: 8px; flex-direction: column; }
+    .overlay-btn {
+      padding: 12px; border: none; border-radius: 12px; font-size: .88rem; font-weight: 700; cursor: pointer;
+    }
+    .overlay-btn.primary { background: var(--accent); color: #12111a; }
+    .overlay-btn.ghost { background: transparent; color: var(--sub); border: 1.5px solid var(--border); }
+    .session-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 12px 0; }
+    .session-stat { background: var(--surface); border-radius: 10px; padding: 10px 6px; }
+    .session-stat b { display: block; font-size: 1.3rem; color: var(--accent); }
+    .session-stat span { font-size: .65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .session-weak { font-size: .78rem; color: var(--sub); margin-bottom: 12px; }
+
+    /* ── Stats history ─────────────────────────────────── */
+    .history-row {
+      display: flex; align-items: flex-end; gap: 6px; height: 72px; margin-bottom: 8px;
+    }
+    .history-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+    .history-bar {
+      width: 100%; max-width: 28px; border-radius: 6px 6px 2px 2px; min-height: 4px;
+      background: var(--accent); transition: height .4s;
+    }
+    .history-lbl { font-size: .58rem; color: var(--muted); }
+    .history-list { display: flex; flex-direction: column; gap: 6px; }
+    .history-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 10px; background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      font-size: .76rem; color: var(--sub);
+    }
+    .history-item b { color: var(--text); }
 
     /* ── Song end overlay ──────────────────────────────── */
     .song-end {
@@ -307,9 +411,124 @@
       font-size: .85rem; font-weight: 600; cursor: pointer;
       -webkit-tap-highlight-color: transparent;
     }
+
+    /* ── Panel layout (mobile: stacked) ─────────────────── */
+    .panel-layout { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+    .panel-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+    .panel-side { display: flex; flex-direction: column; gap: 10px; }
+
+    /* ── Desktop layout ─────────────────────────────────── */
+    @media (min-width: 900px) {
+      :root { --app-max: 1180px; --side-w: 340px; }
+
+      body {
+        padding: 20px 36px 28px;
+        gap: 14px;
+      }
+
+      header, .tab-bar, .tab-panel {
+        max-width: var(--app-max);
+      }
+
+      .tab-btn { padding: 11px 12px; font-size: .88rem; }
+
+      .panel-layout {
+        flex-direction: row;
+        gap: 28px;
+        align-items: flex-start;
+      }
+
+      .panel-main { flex: 1; }
+
+      .panel-side {
+        width: var(--side-w);
+        flex-shrink: 0;
+        position: sticky;
+        top: 12px;
+        padding: 16px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        gap: 14px;
+      }
+
+      .panel-side .group-label { margin-bottom: 6px; }
+
+      .staff-wrap, .song-staff-wrap {
+        border-radius: 20px;
+        box-shadow: 0 12px 48px rgba(0,0,0,.5);
+      }
+
+      .song-staff-wrap {
+        max-height: calc(100vh - 160px);
+      }
+
+      /* Songs: sidebar left, sheet right */
+      .songs-layout { flex-direction: row; }
+      .songs-sidebar {
+        width: 260px;
+        max-height: calc(100vh - 140px);
+        overflow-y: auto;
+      }
+      .songs-sidebar .song-chips {
+        flex-wrap: wrap;
+        overflow-x: visible;
+      }
+      .songs-main { flex: 1; }
+
+      /* Stats: two columns */
+      .stats-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+
+      .panel-side .live-actions { flex-direction: column; }
+      .panel-side .live-skip { width: 100%; text-align: center; }
+
+      .staff-toggles .hint { display: inline; }
+
+      .audio-hint { max-width: 480px; }
+    }
+
+    @media (min-width: 1200px) {
+      :root { --app-max: 1320px; --side-w: 360px; }
+      .songs-sidebar { width: 300px; }
+    }
   </style>
 </head>
 <body>
+
+<div id="onboarding" class="overlay">
+  <div class="overlay-card">
+    <h2>🎻 Welcome</h2>
+    <ul>
+      <li><strong>Tap “Enable sound”</strong> at the bottom first (required on mobile).</li>
+      <li><strong>Practice</strong> — pick string + finger for each note.</li>
+      <li><strong>Live</strong> — microphone detects your pitch.</li>
+      <li><strong>Note pool</strong> — filter by string &amp; finger in the sidebar.</li>
+      <li><strong>Songs</strong> — listen, then quiz; toggle “Show notes” for fingerings.</li>
+    </ul>
+    <div class="overlay-actions">
+      <button type="button" class="overlay-btn primary" id="onboard-dismiss">Get started</button>
+    </div>
+  </div>
+</div>
+
+<div id="session-summary" class="overlay">
+  <div class="overlay-card">
+    <h2 id="session-title">Session complete</h2>
+    <div class="session-stats">
+      <div class="session-stat"><b id="sess-ok">0</b><span>Correct</span></div>
+      <div class="session-stat"><b id="sess-pct">0%</b><span>Accuracy</span></div>
+      <div class="session-stat"><b id="sess-n">0</b><span>Notes</span></div>
+    </div>
+    <div class="session-weak" id="sess-weak"></div>
+    <div class="overlay-actions">
+      <button type="button" class="overlay-btn primary" id="session-continue">Keep going</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── Header ──────────────────────────────────────────── -->
 <header>
@@ -340,38 +559,71 @@
 
   <div class="progress-track"><div class="progress-fill" id="p-progress"></div></div>
 
-  <div class="staff-wrap">
-    <svg id="p-staff" viewBox="0 0 420 250" xmlns="http://www.w3.org/2000/svg"></svg>
-  </div>
+  <div class="panel-layout">
+    <div class="panel-main">
+      <div class="staff-wrap">
+        <svg id="p-staff" viewBox="0 0 420 250" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
 
-  <div class="note-row">
-    <span class="note-tag" id="p-hint">Select string → finger</span>
-    <span class="note-ctr" id="p-ctr">♩ 1</span>
-  </div>
+      <div class="note-row">
+        <span class="note-tag" id="p-hint">Select string → finger</span>
+        <span class="note-ctr" id="p-ctr">♩ 1</span>
+      </div>
 
-  <div>
-    <div class="group-label">String</div>
-    <div class="btn-row" id="p-str">
-      <button class="btn" data-s="G"><span class="btn-lbl">G</span><span class="btn-sub">string</span></button>
-      <button class="btn" data-s="D"><span class="btn-lbl">D</span><span class="btn-sub">string</span></button>
-      <button class="btn" data-s="A"><span class="btn-lbl">A</span><span class="btn-sub">string</span></button>
-      <button class="btn" data-s="E"><span class="btn-lbl">E</span><span class="btn-sub">string</span></button>
+      <button type="button" class="hear-btn" id="p-hear-btn">🔊 Hear this note</button>
+
+      <div class="fb-wrap"><div class="fb" id="p-fb">Pick a string then a finger — auto-checks!</div></div>
+      <div class="hint">Tap string + finger · 🔊 plays on correct</div>
+    </div>
+
+    <div class="panel-side">
+      <div class="string-filter-wrap">
+        <div class="group-label">Note pool <span class="filter-count" id="p-filter-count"></span></div>
+        <div class="filter-chips string-filter-chips" id="p-string-filter">
+          <button type="button" class="filter-chip" data-preset="all">All</button>
+          <button type="button" class="filter-chip string-filter-chip" data-str="G">G</button>
+          <button type="button" class="filter-chip string-filter-chip" data-str="D">D</button>
+          <button type="button" class="filter-chip string-filter-chip" data-str="A">A</button>
+          <button type="button" class="filter-chip string-filter-chip" data-str="E">E</button>
+        </div>
+        <div class="group-label" style="margin-top:4px">Fingers</div>
+        <div class="filter-chips finger-filter-chips" id="p-finger-filter">
+          <button type="button" class="filter-chip finger-filter-chip" data-finger="0">0</button>
+          <button type="button" class="filter-chip finger-filter-chip" data-finger="1">1</button>
+          <button type="button" class="filter-chip finger-filter-chip" data-finger="2">2</button>
+          <button type="button" class="filter-chip finger-filter-chip" data-finger="3">3</button>
+          <button type="button" class="filter-chip finger-filter-chip" data-finger="4">4</button>
+        </div>
+        <div class="group-label" style="margin-top:4px">Difficulty</div>
+        <div class="filter-chips difficulty-chips" id="p-difficulty">
+          <button type="button" class="filter-chip" data-difficulty="open">Open</button>
+          <button type="button" class="filter-chip" data-difficulty="beginner">Beginner</button>
+          <button type="button" class="filter-chip" data-difficulty="mid">Mid</button>
+          <button type="button" class="filter-chip active" data-difficulty="full">Full</button>
+        </div>
+      </div>
+      <div>
+        <div class="group-label">String</div>
+        <div class="btn-row" id="p-str">
+          <button class="btn" data-s="G"><span class="btn-lbl">G</span><span class="btn-sub">string</span></button>
+          <button class="btn" data-s="D"><span class="btn-lbl">D</span><span class="btn-sub">string</span></button>
+          <button class="btn" data-s="A"><span class="btn-lbl">A</span><span class="btn-sub">string</span></button>
+          <button class="btn" data-s="E"><span class="btn-lbl">E</span><span class="btn-sub">string</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="group-label">Finger</div>
+        <div class="btn-row" id="p-fng">
+          <button class="btn" data-f="0"><span class="btn-lbl">0</span><span class="btn-sub">open</span></button>
+          <button class="btn" data-f="1"><span class="btn-lbl">1</span></button>
+          <button class="btn" data-f="2"><span class="btn-lbl">2</span></button>
+          <button class="btn" data-f="3"><span class="btn-lbl">3</span></button>
+          <button class="btn" data-f="4"><span class="btn-lbl">4</span></button>
+        </div>
+      </div>
     </div>
   </div>
-
-  <div>
-    <div class="group-label">Finger</div>
-    <div class="btn-row" id="p-fng">
-      <button class="btn" data-f="0"><span class="btn-lbl">0</span><span class="btn-sub">open</span></button>
-      <button class="btn" data-f="1"><span class="btn-lbl">1</span></button>
-      <button class="btn" data-f="2"><span class="btn-lbl">2</span></button>
-      <button class="btn" data-f="3"><span class="btn-lbl">3</span></button>
-      <button class="btn" data-f="4"><span class="btn-lbl">4</span></button>
-    </div>
-  </div>
-
-  <div class="fb-wrap"><div class="fb" id="p-fb">Pick a string then a finger — auto-checks!</div></div>
-  <div class="hint">Tap string + finger · 🔊 plays on correct</div>
 
 </div><!-- /tab-practice -->
 
@@ -382,25 +634,82 @@
 
   <div class="progress-track"><div class="progress-fill" id="l-progress"></div></div>
 
-  <div class="staff-wrap">
-    <svg id="l-staff" viewBox="0 0 420 250" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div class="panel-layout">
+    <div class="panel-main">
+      <div class="staff-wrap">
+        <svg id="l-staff" viewBox="0 0 420 250" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+
+      <div class="note-row">
+        <span class="note-tag" id="l-hint">Play the highlighted note on your violin</span>
+        <span class="note-ctr" id="l-ctr">♩ 1</span>
+      </div>
+
+      <div class="live-pitch" id="live-pitch">—</div>
+      <div class="cents-meter" id="live-cents-wrap">
+        <div class="cents-bar"><div class="cents-needle" id="live-needle"></div></div>
+        <div class="cents-lbl" id="live-cents-lbl">Play a note to see tuning</div>
+      </div>
+      <button type="button" class="hear-btn" id="l-hear-btn">🔊 Hear this note</button>
+      <div class="fb-wrap"><div class="fb" id="l-fb">Hold a steady note — we'll detect the pitch</div></div>
+      <div class="hint">Quiet room · bow close to the mic · G3–B5 range</div>
+    </div>
+
+    <div class="panel-side">
+      <div class="string-filter-wrap">
+        <div class="group-label">Note pool <span class="filter-count" id="l-filter-count"></span></div>
+        <div class="filter-chips string-filter-chips" id="l-string-filter">
+          <button type="button" class="filter-chip" data-preset="all">All</button>
+          <button type="button" class="filter-chip string-filter-chip" data-str="G">G</button>
+          <button type="button" class="filter-chip string-filter-chip" data-str="D">D</button>
+          <button type="button" class="filter-chip string-filter-chip" data-str="A">A</button>
+          <button type="button" class="filter-chip string-filter-chip" data-str="E">E</button>
+        </div>
+        <div class="group-label" style="margin-top:4px">Fingers</div>
+        <div class="filter-chips finger-filter-chips" id="l-finger-filter">
+          <button type="button" class="filter-chip finger-filter-chip" data-finger="0">0</button>
+          <button type="button" class="filter-chip finger-filter-chip" data-finger="1">1</button>
+          <button type="button" class="filter-chip finger-filter-chip" data-finger="2">2</button>
+          <button type="button" class="filter-chip finger-filter-chip" data-finger="3">3</button>
+          <button type="button" class="filter-chip finger-filter-chip" data-finger="4">4</button>
+        </div>
+        <div class="group-label" style="margin-top:4px">Difficulty</div>
+        <div class="filter-chips difficulty-chips" id="l-difficulty">
+          <button type="button" class="filter-chip" data-difficulty="open">Open</button>
+          <button type="button" class="filter-chip" data-difficulty="beginner">Beginner</button>
+          <button type="button" class="filter-chip" data-difficulty="mid">Mid</button>
+          <button type="button" class="filter-chip active" data-difficulty="full">Full</button>
+        </div>
+      </div>
+      <div class="live-status" id="live-status">🎤 Tap Start to enable the microphone</div>
+      <div class="live-actions">
+        <button class="play-btn" id="live-start-btn">🎤 Start Listening</button>
+        <button class="live-skip" id="live-skip-btn" disabled>Skip</button>
+      </div>
+      <button type="button" class="undo-btn" id="live-undo-btn">↩ Undo last (wrong detection)</button>
+      <div class="live-ref">
+        <div>
+          <div class="group-label">String</div>
+          <div class="btn-row" id="l-str">
+            <button class="btn" type="button" disabled data-s="G"><span class="btn-lbl">G</span><span class="btn-sub">string</span></button>
+            <button class="btn" type="button" disabled data-s="D"><span class="btn-lbl">D</span><span class="btn-sub">string</span></button>
+            <button class="btn" type="button" disabled data-s="A"><span class="btn-lbl">A</span><span class="btn-sub">string</span></button>
+            <button class="btn" type="button" disabled data-s="E"><span class="btn-lbl">E</span><span class="btn-sub">string</span></button>
+          </div>
+        </div>
+        <div>
+          <div class="group-label">Finger</div>
+          <div class="btn-row" id="l-fng">
+            <button class="btn" type="button" disabled data-f="0"><span class="btn-lbl">0</span><span class="btn-sub">open</span></button>
+            <button class="btn" type="button" disabled data-f="1"><span class="btn-lbl">1</span></button>
+            <button class="btn" type="button" disabled data-f="2"><span class="btn-lbl">2</span></button>
+            <button class="btn" type="button" disabled data-f="3"><span class="btn-lbl">3</span></button>
+            <button class="btn" type="button" disabled data-f="4"><span class="btn-lbl">4</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-
-  <div class="note-row">
-    <span class="note-tag" id="l-hint">Play the highlighted note on your violin</span>
-    <span class="note-ctr" id="l-ctr">♩ 1</span>
-  </div>
-
-  <div class="live-pitch" id="live-pitch">—</div>
-  <div class="live-status" id="live-status">🎤 Tap Start to enable the microphone</div>
-
-  <div class="live-actions">
-    <button class="play-btn" id="live-start-btn">🎤 Start Listening</button>
-    <button class="live-skip" id="live-skip-btn" disabled>Skip</button>
-  </div>
-
-  <div class="fb-wrap"><div class="fb" id="l-fb">Hold a steady note — we'll detect the pitch</div></div>
-  <div class="hint">Quiet room · bow close to the mic · G3–B5 range</div>
 
 </div><!-- /tab-live -->
 
@@ -409,38 +718,42 @@
      ═══════════════════════════════════════════════════════ -->
 <div id="tab-songs" class="tab-panel">
 
-  <!-- Song picker -->
-  <div class="song-picker" id="song-picker"></div>
+  <div class="panel-layout songs-layout">
+    <div class="panel-side songs-sidebar">
+      <div class="song-picker" id="song-picker"></div>
+    </div>
 
-  <!-- Full-piece staff (scrollable) -->
-  <div class="song-staff-wrap" id="song-staff-wrap">
-    <svg id="s-staff" xmlns="http://www.w3.org/2000/svg"></svg>
-  </div>
+    <div class="panel-main songs-main">
+      <div class="song-staff-wrap" id="song-staff-wrap">
+        <svg id="s-staff" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
 
-  <div class="note-row">
-    <span class="note-tag" id="s-hint">Select a song, then press Play</span>
-    <span class="note-ctr" id="s-ctr">0 / 0</span>
-  </div>
+      <div class="note-row">
+        <span class="note-tag" id="s-hint">Select a song, then press Play</span>
+        <span class="note-ctr" id="s-ctr">0 / 0</span>
+      </div>
+      <div class="live-pitch" id="s-playalong-pitch" style="display:none;font-size:1rem;">—</div>
 
-  <div class="staff-toggles">
-    <button class="toggle-btn" id="show-notes-btn">👁 Show notes</button>
-  </div>
+      <div class="staff-toggles">
+        <button class="toggle-btn" id="show-notes-btn">👁 Show notes</button>
+        <button class="toggle-btn" id="key-sig-btn" data-key="D">Key: D major</button>
+        <button class="toggle-btn" id="playalong-btn">🎤 Play-along mic</button>
+        <span class="hint" style="opacity:1;margin:0;">Shows note name, finger &amp; string colour</span>
+      </div>
 
-  <div class="tempo-row" id="tempo-row">
-    <span aria-hidden="true">🐢</span>
-    <input type="range" id="tempo-slider" min="50" max="160" value="109" aria-label="Playback tempo">
-    <span aria-hidden="true">🐇</span>
-    <span class="tempo-label" id="tempo-label">109 BPM</span>
-  </div>
+      <div class="tempo-row" id="tempo-row">
+        <span aria-hidden="true">🐢</span>
+        <input type="range" id="tempo-slider" min="50" max="160" value="109" aria-label="Playback tempo">
+        <span aria-hidden="true">🐇</span>
+        <span class="tempo-label" id="tempo-label">109 BPM</span>
+      </div>
 
-  <!-- Listen + Quiz buttons -->
-  <div class="song-actions">
-    <button class="play-btn" id="play-btn" disabled>▶ Listen First</button>
-    <button class="quiz-btn" id="quiz-btn" disabled>🎯 Quiz</button>
-  </div>
+      <div class="song-actions">
+        <button class="play-btn" id="play-btn" disabled>▶ Listen First</button>
+        <button class="quiz-btn" id="quiz-btn" disabled>🎯 Quiz</button>
+      </div>
 
-  <!-- Identification controls (hidden until playing) -->
-  <div id="s-controls" style="display:none; flex-direction:column; gap:9px;">
+      <div id="s-controls" style="display:none; flex-direction:column; gap:9px;">
     <div>
       <div class="group-label">String</div>
       <div class="btn-row" id="s-str">
@@ -461,14 +774,15 @@
       </div>
     </div>
     <div class="fb-wrap"><div class="fb" id="s-fb"></div></div>
-  </div>
+      </div>
 
-  <!-- Song-end result card -->
-  <div class="song-end" id="song-end">
-    <h2 id="end-emoji">🎉</h2>
-    <p id="end-msg"></p>
-    <button class="replay-btn" id="replay-btn">↺ Play Again</button>
-  </div>
+      <div class="song-end" id="song-end">
+        <h2 id="end-emoji">🎉</h2>
+        <p id="end-msg"></p>
+        <button class="replay-btn" id="replay-btn">↺ Play Again</button>
+      </div>
+    </div><!-- /songs-main -->
+  </div><!-- /panel-layout -->
 
 </div><!-- /tab-songs -->
 
@@ -482,14 +796,22 @@
     <div class="acc-sub" id="acc-sub">Play some notes to build your stats</div>
   </div>
 
-  <div>
-    <div class="stats-section-title">Accuracy by String</div>
-    <div id="str-bars"></div>
+  <div class="stats-cols">
+    <div>
+      <div class="stats-section-title">Accuracy by String</div>
+      <div id="str-bars"></div>
+    </div>
+
+    <div>
+      <div class="stats-section-title">Accuracy by Finger</div>
+      <div id="fng-bars"></div>
+    </div>
   </div>
 
   <div>
-    <div class="stats-section-title">Accuracy by Finger</div>
-    <div id="fng-bars"></div>
+    <div class="stats-section-title">Recent sessions</div>
+    <div id="history-chart"></div>
+    <div class="history-list" id="history-list"></div>
   </div>
 
   <div>
@@ -539,7 +861,31 @@ const PITCH_MAP = {};
 NOTES.forEach(n => (PITCH_MAP[n.pos] ??= []).push({s:n.s, f:n.f}));
 
 // D major key signature — F♯ and C♯ (no per-note accidental needed)
-const KEY_SIG_SHARPS = [3, 7];
+let KEY_SIG_SHARPS = [3, 7];
+const KEY_SIG_OPTIONS = {
+  D: { label: 'D major', sharps: [3, 7] },
+  C: { label: 'C major', sharps: [] },
+  G: { label: 'G major', sharps: [6] },
+};
+let _activeKeySig = 'D';
+const KEYSIG_KEY = 'violin_reader_keysig_v1';
+
+function loadKeySig() {
+  try {
+    const k = localStorage.getItem(KEYSIG_KEY);
+    if (k && KEY_SIG_OPTIONS[k]) { _activeKeySig = k; KEY_SIG_SHARPS = [...KEY_SIG_OPTIONS[k].sharps]; }
+  } catch {}
+}
+
+function setKeySignature(key) {
+  if (!KEY_SIG_OPTIONS[key]) return;
+  _activeKeySig = key;
+  KEY_SIG_SHARPS = [...KEY_SIG_OPTIONS[key].sharps];
+  try { localStorage.setItem(KEYSIG_KEY, key); } catch {}
+  const btn = document.getElementById('key-sig-btn');
+  if (btn) { btn.dataset.key = key; btn.textContent = 'Key: ' + KEY_SIG_OPTIONS[key].label; btn.classList.add('active'); }
+  if (typeof window.__rerenderSongStaff === 'function') window.__rerenderSongStaff();
+}
 function noteNeedsAccidental(note) {
   return note.acc === '#' && !KEY_SIG_SHARPS.includes(note.pos);
 }
@@ -555,14 +901,54 @@ function pitchName(pos) {
 function primaryString(pos) {
   return NOTES.find(n => n.pos === pos)?.s || PITCH_MAP[pos]?.[0]?.s || 'G';
 }
+
+function primaryFingering(pos) {
+  const n = NOTES.find(x => x.pos === pos);
+  if (n) return { s: n.s, f: n.f, name: n.name || pitchName(pos) };
+  const alt = PITCH_MAP[pos]?.[0];
+  return { s: alt?.s || 'G', f: alt?.f ?? 0, name: pitchName(pos) };
+}
+
 const STR_COL = { G:'#4dcb78', D:'#7062ab', A:'#f5bb40', E:'#e8834a' };
+
+/** Finger + string-colour hint above a staff note (practice / live feedback). */
+function drawStaffAnswerHint(parent, x, y, valid, mode) {
+  if (!valid?.length) return;
+  const fingerCol = mode === 'correct' ? '#4dcb78' : '#e95555';
+  const spread = valid.length > 1 ? 20 : 0;
+  valid.forEach((a, i) => {
+    const ox = x + (valid.length > 1 ? (i - (valid.length - 1) / 2) * spread : 0);
+    const strCol = STR_COL[a.s] || fingerCol;
+    const dotY = y - 16;
+    parent.appendChild(svgEl('circle', {
+      class: 'hint-str-ring', cx: ox, cy: dotY, r: 10,
+      fill: 'none', stroke: strCol, 'stroke-width': 2.5, opacity: 0.75,
+    }));
+    parent.appendChild(svgEl('circle', {
+      class: 'hint-str-dot', cx: ox, cy: dotY, r: 5,
+      fill: strCol, opacity: 0.95,
+    }));
+    const badge = svgEl('g', { class: 'hint-finger' });
+    badge.appendChild(svgEl('rect', {
+      x: ox - 9, y: y - 36, width: 18, height: 14, rx: 4,
+      fill: fingerCol, opacity: 0.22, stroke: fingerCol, 'stroke-width': 1.2,
+    }));
+    const ft = svgEl('text', {
+      x: ox, y: y - 26, 'font-size': 11, 'font-weight': '800',
+      'font-family': 'sans-serif', fill: fingerCol, 'text-anchor': 'middle',
+    });
+    ft.textContent = String(a.f);
+    badge.appendChild(ft);
+    parent.appendChild(badge);
+  });
+}
 
 function msPerBeatFromBpm(bpm) { return 60000 / bpm; }
 
 // ── PITCH DETECTION (live / mic mode) ───────────────────
 const liveModeHooks = { leave: null };
 
-function detectPitchHz(analyser, sampleRate) {
+function detectPitchHz(analyser, sampleRate, rmsMin = 0.006) {
   const SIZE = analyser.fftSize;
   const buf = new Float32Array(SIZE);
   analyser.getFloatTimeDomainData(buf);
@@ -570,7 +956,7 @@ function detectPitchHz(analyser, sampleRate) {
   let rms = 0;
   for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
   rms = Math.sqrt(rms / SIZE);
-  if (rms < 0.006) return null;
+  if (rms < rmsMin) return null;
 
   const c = new Float32Array(SIZE);
   for (let i = 0; i < SIZE; i++) {
@@ -591,14 +977,14 @@ function detectPitchHz(analyser, sampleRate) {
   return hz;
 }
 
-function matchPitchToNote(hz) {
+function matchPitchToNote(hz, maxCents = 45) {
   if (!hz) return null;
   let best = null, bestCents = Infinity;
   for (const n of NOTES) {
     const cents = Math.abs(1200 * Math.log2(hz / n.hz));
     if (cents < bestCents) { bestCents = cents; best = n; }
   }
-  return bestCents <= 45 ? best : null;
+  return bestCents <= maxCents ? best : null;
 }
 
 function centsOff(hz, targetHz) {
@@ -696,7 +1082,7 @@ function loadSampler() {
     const timer = setTimeout(() => done(false), SF_TIMEOUT_MS);
     try {
       _sampler = new Tone.Sampler({
-        urls: { A3:'A3.mp3', D4:'D4.mp3', A4:'A4.mp3', A5:'A5.mp3' },
+        urls: { G3:'G3.mp3', A3:'A3.mp3', D4:'D4.mp3', A4:'A4.mp3', E5:'E5.mp3', A5:'A5.mp3' },
         baseUrl: SF_BASE,
         onload: () => { clearTimeout(timer); done(true); },
       }).toDestination();
@@ -830,6 +1216,8 @@ function switchTab(name) {
     p.classList.toggle('active', p.id === 'tab-' + name);
   });
   if (name === 'stats') renderStats();
+  if (name === 'practice') sessionStart('practice');
+  if (name === 'live') sessionStart('live');
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -876,19 +1264,335 @@ function recordAnswer(note, isCorrect) {
   try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch {}
 }
 
-// Weighted random: notes you struggle with appear more often
-function pickWeightedNote(exclude) {
-  const s  = loadStats();
-  const pool = NOTES.filter(n => n !== exclude);
-  const ws = pool.map(n => {
-    const d   = s.notes[n.s + n.f] || {a:0, c:0};
-    const w   = d.a === 0 ? 4 : Math.max(0.4, (1 - d.c/d.a) * 4 + 0.4);
-    return {n, w};
+// Weighted random + shuffled deck; string & finger filters
+const ALL_STRINGS = ['G', 'D', 'A', 'E'];
+const ALL_FINGERS = [0, 1, 2, 3, 4];
+const FILTER_KEY = 'violin_reader_string_filter_v1';
+const FINGER_FILTER_KEY = 'violin_reader_finger_filter_v1';
+const DIFFICULTY_PRESETS = {
+  open: [0],
+  beginner: [0, 1],
+  mid: [0, 1, 2, 3],
+  full: [0, 1, 2, 3, 4],
+};
+const _recentPos = [];
+const RECENT_POS_MAX = 14;
+const RECENT_POS_BAN = 5;
+let _stringFilter = new Set(ALL_STRINGS);
+let _fingerFilter = new Set(ALL_FINGERS);
+let _noteDeck = [];
+const _filterChangeHooks = [];
+
+// Session tracking
+const SESSION_LEN = 10;
+const HISTORY_KEY = 'violin_reader_history_v1';
+const ONBOARD_KEY = 'violin_reader_onboarded_v1';
+let _session = { mode: '', results: [] };
+
+function sessionStart(mode) {
+  if (_session.mode !== mode) { _session = { mode, results: [] }; }
+}
+
+function sessionRecord(note, correct) {
+  _session.results.push({
+    name: note.name || pitchName(note.pos), s: note.s, f: note.f, correct,
   });
-  const total = ws.reduce((t, x) => t + x.w, 0);
-  let r = Math.random() * total;
-  for (const {n, w} of ws) { r -= w; if (r <= 0) return n; }
-  return ws[ws.length - 1].n;
+  if (_session.results.length >= SESSION_LEN) showSessionSummary();
+}
+
+function showSessionSummary() {
+  const r = _session.results;
+  const ok = r.filter(x => x.correct).length;
+  const pct = Math.round(ok / r.length * 100);
+  const weak = {};
+  r.filter(x => !x.correct).forEach(x => {
+    const k = x.name + ' (' + x.s + x.f + ')';
+    weak[k] = (weak[k] || 0) + 1;
+  });
+  const weakKey = Object.entries(weak).sort((a, b) => b[1] - a[1])[0];
+  document.getElementById('sess-ok').textContent = ok;
+  document.getElementById('sess-pct').textContent = pct + '%';
+  document.getElementById('sess-n').textContent = r.length;
+  document.getElementById('sess-weak').textContent = weakKey
+    ? 'Focus next: ' + weakKey[0]
+    : 'Great session — no weak spots!';
+  document.getElementById('session-title').textContent =
+    pct >= 80 ? '🎉 Nice session!' : pct >= 50 ? '👍 Keep practicing' : '💪 Room to grow';
+  saveSessionHistory({ date: Date.now(), mode: _session.mode, ok, total: r.length, pct });
+  document.getElementById('session-summary').classList.add('visible');
+  _session.results = [];
+}
+
+function saveSessionHistory(entry) {
+  let hist = [];
+  try { hist = JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch {}
+  hist.unshift(entry);
+  if (hist.length > 30) hist.length = 30;
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(hist)); } catch {}
+}
+
+function loadSessionHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; }
+}
+
+function hearNoteHz(hz) {
+  if (!hz) return;
+  playTone(hz, 0.85, 0.38);
+}
+
+function initOnboarding() {
+  const el = document.getElementById('onboarding');
+  try {
+    if (localStorage.getItem(ONBOARD_KEY)) return;
+  } catch {}
+  el.classList.add('visible');
+  document.getElementById('onboard-dismiss').onclick = () => {
+    el.classList.remove('visible');
+    try { localStorage.setItem(ONBOARD_KEY, '1'); } catch {}
+  };
+}
+
+document.getElementById('session-continue')?.addEventListener('click', () => {
+  document.getElementById('session-summary').classList.remove('visible');
+});
+
+function loadFingerFilter() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FINGER_FILTER_KEY));
+    if (Array.isArray(saved) && saved.length) {
+      _fingerFilter = new Set(saved.filter(f => ALL_FINGERS.includes(f)));
+      if (!_fingerFilter.size) _fingerFilter = new Set(ALL_FINGERS);
+    }
+  } catch {}
+  return _fingerFilter;
+}
+
+function saveFingerFilter() {
+  try { localStorage.setItem(FINGER_FILTER_KEY, JSON.stringify([..._fingerFilter])); } catch {}
+}
+
+function loadStringFilter() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FILTER_KEY));
+    if (Array.isArray(saved) && saved.length) {
+      _stringFilter = new Set(saved.filter(s => ALL_STRINGS.includes(s)));
+      if (!_stringFilter.size) _stringFilter = new Set(ALL_STRINGS);
+    }
+  } catch {}
+  return _stringFilter;
+}
+
+function saveStringFilter() {
+  try { localStorage.setItem(FILTER_KEY, JSON.stringify([..._stringFilter])); } catch {}
+}
+
+function getFilteredNotes() {
+  return NOTES.filter(n => _stringFilter.has(n.s) && _fingerFilter.has(n.f));
+}
+
+function applyFingerFilter(fingers) {
+  _fingerFilter = new Set(fingers.filter(f => ALL_FINGERS.includes(f)));
+  if (!_fingerFilter.size) _fingerFilter = new Set(ALL_FINGERS);
+  saveFingerFilter();
+  resetNoteDeck();
+  syncStringFilterUI();
+  _filterChangeHooks.forEach(h => h());
+}
+
+function toggleFingerInFilter(f) {
+  if (_fingerFilter.has(f)) {
+    if (_fingerFilter.size > 1) _fingerFilter.delete(f);
+  } else {
+    _fingerFilter.add(f);
+  }
+  saveFingerFilter();
+  resetNoteDeck();
+  syncStringFilterUI();
+  _filterChangeHooks.forEach(h => h());
+}
+
+function applyDifficultyPreset(preset) {
+  const fingers = DIFFICULTY_PRESETS[preset];
+  if (!fingers) return;
+  applyFingerFilter(fingers);
+  document.querySelectorAll('.difficulty-chips .filter-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.difficulty === preset);
+  });
+}
+
+function resetNoteDeck() {
+  _noteDeck = [];
+  _recentPos.length = 0;
+}
+
+function reshuffleDeck() {
+  const notes = getFilteredNotes();
+  _noteDeck = [...notes];
+  for (let i = _noteDeck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [_noteDeck[i], _noteDeck[j]] = [_noteDeck[j], _noteDeck[i]];
+  }
+}
+
+function onStringFilterChange(fn) {
+  _filterChangeHooks.push(fn);
+}
+
+function applyStringFilter(strings) {
+  _stringFilter = new Set(strings.filter(s => ALL_STRINGS.includes(s)));
+  if (!_stringFilter.size) _stringFilter = new Set(ALL_STRINGS);
+  saveStringFilter();
+  resetNoteDeck();
+  syncStringFilterUI();
+  _filterChangeHooks.forEach(h => h());
+}
+
+function toggleStringInFilter(str) {
+  if (_stringFilter.has(str)) {
+    if (_stringFilter.size > 1) _stringFilter.delete(str);
+  } else {
+    _stringFilter.add(str);
+  }
+  saveStringFilter();
+  resetNoteDeck();
+  syncStringFilterUI();
+  _filterChangeHooks.forEach(h => h());
+}
+
+function syncStringFilterUI() {
+  const allStr = ALL_STRINGS.every(s => _stringFilter.has(s));
+  const allFng = ALL_FINGERS.every(f => _fingerFilter.has(f));
+  document.querySelectorAll('.string-filter-chips').forEach(group => {
+    group.querySelectorAll('.filter-chip').forEach(chip => {
+      if (chip.dataset.preset === 'all') chip.classList.toggle('active', allStr);
+      else if (chip.dataset.str) chip.classList.toggle('active', _stringFilter.has(chip.dataset.str));
+    });
+  });
+  document.querySelectorAll('.finger-filter-chips').forEach(group => {
+    group.querySelectorAll('.filter-chip').forEach(chip => {
+      if (chip.dataset.finger != null) {
+        chip.classList.toggle('active', _fingerFilter.has(+chip.dataset.finger));
+      }
+    });
+  });
+  document.querySelectorAll('.difficulty-chips .filter-chip').forEach(chip => {
+    const preset = chip.dataset.difficulty;
+    if (!preset) return;
+    const match = DIFFICULTY_PRESETS[preset]?.every(f => _fingerFilter.has(f))
+      && DIFFICULTY_PRESETS[preset]?.length === _fingerFilter.size;
+    chip.classList.toggle('active', !!match);
+  });
+  const n = getFilteredNotes().length;
+  document.querySelectorAll('.filter-count').forEach(el => {
+    el.textContent = `(${n} note${n === 1 ? '' : 's'})`;
+  });
+}
+
+function wireFingerFilterChips(rootId) {
+  const root = document.getElementById(rootId);
+  if (!root) return;
+  root.addEventListener('click', e => {
+    const chip = e.target.closest('.filter-chip');
+    if (!chip || chip.dataset.finger == null) return;
+    toggleFingerInFilter(+chip.dataset.finger);
+  });
+}
+
+function wireDifficultyChips(rootId) {
+  const root = document.getElementById(rootId);
+  if (!root) return;
+  root.addEventListener('click', e => {
+    const chip = e.target.closest('[data-difficulty]');
+    if (!chip) return;
+    applyDifficultyPreset(chip.dataset.difficulty);
+  });
+}
+
+function wireStringFilterChips(rootId) {
+  const root = document.getElementById(rootId);
+  if (!root) return;
+  root.addEventListener('click', e => {
+    const chip = e.target.closest('.filter-chip');
+    if (!chip) return;
+    if (chip.dataset.preset === 'all') {
+      applyStringFilter(ALL_STRINGS);
+      return;
+    }
+    if (chip.dataset.str) toggleStringInFilter(chip.dataset.str);
+  });
+}
+
+function getValidFingerings(pos) {
+  return (PITCH_MAP[pos] || []).filter(a => _stringFilter.has(a.s));
+}
+
+loadStringFilter();
+loadFingerFilter();
+loadKeySig();
+
+function statsForPos(pos, s) {
+  const fingerings = PITCH_MAP[pos] || [];
+  let a = 0, c = 0;
+  for (const f of fingerings) {
+    const d = s.notes[f.s + f.f] || { a: 0, c: 0 };
+    a += d.a;
+    c += d.c;
+  }
+  return { a, c };
+}
+
+function pickWeightedNote(recentNotes) {
+  const filtered = getFilteredNotes();
+  if (!filtered.length) return NOTES[0];
+
+  const recent = recentNotes || [];
+  const bannedPos = new Set([
+    ...recent.map(n => n?.pos).filter(p => p != null),
+    ..._recentPos.slice(-RECENT_POS_BAN),
+  ]);
+  const lastNote = recent[recent.length - 1];
+  const lastKey = lastNote ? `${lastNote.s}${lastNote.f}` : null;
+
+  if (!_noteDeck.length) reshuffleDeck();
+
+  let picked = null;
+  const s = loadStats();
+  for (let tries = 0; tries < _noteDeck.length + 4; tries++) {
+    if (!_noteDeck.length) reshuffleDeck();
+    const candidate = _noteDeck.shift();
+    const key = `${candidate.s}${candidate.f}`;
+    if (key === lastKey && _noteDeck.length) {
+      _noteDeck.push(candidate);
+      continue;
+    }
+    if (bannedPos.has(candidate.pos) && _noteDeck.length >= 3) {
+      _noteDeck.push(candidate);
+      continue;
+    }
+    const d = s.notes[key] || { a: 0, c: 0 };
+    const weak = d.a === 0 || (d.a > 0 && d.c / d.a < 0.7);
+    if (weak && Math.random() < 0.35 && _noteDeck.length) {
+      _noteDeck.push(candidate);
+      const weakIdx = _noteDeck.findIndex(n => {
+        const k = n.s + n.f;
+        const dd = s.notes[k] || { a: 0, c: 0 };
+        return dd.a === 0 || (dd.a > 0 && dd.c / dd.a < 0.7);
+      });
+      if (weakIdx >= 0) picked = _noteDeck.splice(weakIdx, 1)[0];
+      else picked = candidate;
+    } else {
+      picked = candidate;
+    }
+    break;
+  }
+  if (!picked) {
+    reshuffleDeck();
+    picked = _noteDeck.shift() || filtered[0];
+  }
+
+  _recentPos.push(picked.pos);
+  if (_recentPos.length > RECENT_POS_MAX) _recentPos.shift();
+  return picked;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -926,7 +1630,7 @@ function pickWeightedNote(exclude) {
     svg.appendChild(g);
   }
 
-  function renderPractice(visible, flash) {
+  function renderPractice(visible, flash, answerValid) {
     const svg=document.getElementById('p-staff');
     svg.innerHTML='';
     const defs=svgEl('defs',{}), gr=svgEl('linearGradient',{id:'rfade',x1:0,x2:1,y1:0,y2:0});
@@ -950,6 +1654,9 @@ function pickWeightedNote(exclude) {
       const col=(i===0&&flash)?(flash==='correct'?'#4dcb78':'#e95555'):baseC;
       drawNoteAt(svg,note,NX[i],col,SOP[i]);
     });
+    if (flash && answerValid?.length && visible[0]) {
+      drawStaffAnswerHint(svg, NX[0], ny(visible[0].pos), answerValid, flash);
+    }
     svg.appendChild(svgEl('rect',{x:NX[2]+28,y:0,width:420-(NX[2]+28),height:250,fill:'url(#rfade)'}));
   }
 
@@ -962,13 +1669,14 @@ function pickWeightedNote(exclude) {
   const hEl=document.getElementById('p-hint');
 
   function fillBuf() {
-    while (buf.length < 4) buf.push(pickWeightedNote(buf[buf.length-1] ?? null));
+    while (buf.length < 4) buf.push(pickWeightedNote(buf));
   }
   function visible() { return buf.slice(0,4); }
   function cur()     { return buf[0]; }
 
   function setProgress() {
-    document.getElementById('p-progress').style.width=((answered%NOTES.length)/NOTES.length*100)+'%';
+    const pool = getFilteredNotes().length;
+    document.getElementById('p-progress').style.width=((answered%Math.max(pool,1))/Math.max(pool,1)*100)+'%';
     document.getElementById('p-ctr').textContent='♩ '+(answered+1);
   }
   function resetBtns() {
@@ -994,38 +1702,36 @@ function pickWeightedNote(exclude) {
   function checkP() {
     if(selS===null||selF===null||locked) return;
     setLocked(true);
-    const note=cur(), valid=PITCH_MAP[note.pos]||[];
+    const note=cur(), valid=getValidFingerings(note.pos);
     const good=valid.some(a=>a.s===selS&&a.f===selF);
     if(good) {
       okCnt++; streak++;
       recordAnswer(note, true);
+      sessionRecord(note, true);
       playTone(note.hz);
       document.querySelector(`#p-str [data-s="${selS}"]`)?.classList.add('correct');
       document.querySelector(`#p-fng [data-f="${selF}"]`)?.classList.add('correct');
       fbEl.innerHTML=`✅ <strong>${note.name}</strong> · ${note.s} string, finger ${note.f}`;
       fbEl.className='fb correct';
       hEl.textContent=note.name;
-      renderPractice(visible(),'correct');
-      // Finger label on top of the current note
-      const pSvg=document.getElementById('p-staff');
-      const lbl=svgEl('text',{x:NX[0],y:ny(note.pos)-14,'font-size':12,'font-weight':'800','font-family':'sans-serif',fill:'#4dcb78','text-anchor':'middle'});
-      lbl.textContent=String(selF); pSvg.appendChild(lbl);
+      renderPractice(visible(),'correct',[{s:selS,f:selF}]);
       document.getElementById('st-ok').textContent=okCnt;
       document.getElementById('st-streak').textContent=streak;
       setTimeout(advance,1100);
     } else {
       streak=0;
       recordAnswer(note, false);
+      sessionRecord(note, false);
       playWrong();
       document.querySelector(`#p-str [data-s="${selS}"]`)?.classList.add('wrong');
       document.querySelector(`#p-fng [data-f="${selF}"]`)?.classList.add('wrong');
       valid.forEach(a=>{
-        document.querySelector(`#p-str [data-s="${a.s}"]`)?.classList.add('correct');
-        document.querySelector(`#p-fng [data-f="${a.f}"]`)?.classList.add('correct');
+        document.querySelector(`#p-str [data-s="${a.s}"]`)?.classList.add('reveal');
+        document.querySelector(`#p-fng [data-f="${a.f}"]`)?.classList.add('reveal');
       });
-      fbEl.innerHTML=`❌ <strong>${note.name}</strong>: ${valid.map(a=>`${a.s} str, f${a.f}`).join(' or ')}`;
+      fbEl.innerHTML=`❌ Expected <strong>${note.name}</strong>`;
       fbEl.className='fb wrong';
-      renderPractice(visible(),'wrong');
+      renderPractice(visible(),'wrong',valid);
       document.getElementById('st-streak').textContent=0;
       setTimeout(advance,1800);
     }
@@ -1051,6 +1757,51 @@ function pickWeightedNote(exclude) {
   fillBuf();
   setProgress();
   renderPractice(visible(),null);
+
+  function resetPracticeForFilter() {
+    buf = [];
+    answered = 0;
+    locked = false;
+    selS = null;
+    selF = null;
+    resetBtns();
+    setLocked(false);
+    fillBuf();
+    setProgress();
+    renderPractice(visible(), null);
+    fbEl.textContent = 'Pick a string then a finger — auto-checks!';
+    fbEl.className = 'fb';
+    hEl.textContent = 'Select string → finger';
+  }
+
+  wireStringFilterChips('p-string-filter');
+  wireFingerFilterChips('p-finger-filter');
+  wireDifficultyChips('p-difficulty');
+  onStringFilterChange(resetPracticeForFilter);
+  syncStringFilterUI();
+  sessionStart('practice');
+
+  document.getElementById('p-hear-btn').addEventListener('click', () => {
+    unlockAudioSync();
+    hearNoteHz(cur()?.hz);
+  });
+
+  document.addEventListener('keydown', e => {
+    if (!document.getElementById('tab-practice').classList.contains('active') || locked) return;
+    const k = e.key.toUpperCase();
+    if (['G','D','A','E'].includes(k)) {
+      selS = k;
+      document.querySelectorAll('#p-str .btn').forEach(x => x.className = 'btn');
+      document.querySelector(`#p-str [data-s="${k}"]`)?.classList.add('selected');
+      if (selF !== null) checkP();
+    }
+    if (e.key >= '0' && e.key <= '4') {
+      selF = +e.key;
+      document.querySelectorAll('#p-fng .btn').forEach(x => x.className = 'btn');
+      document.querySelector(`#p-fng [data-f="${e.key}"]`)?.classList.add('selected');
+      if (selS !== null) checkP();
+    }
+  });
 })();
 
 // ═══════════════════════════════════════════════════════════
@@ -1064,8 +1815,25 @@ function pickWeightedNote(exclude) {
   const NX = [102,178,248,318];
   const SCOL = ['#f5bb40','#8e86b0','#6a647e','#4e4a62'];
   const SOP  = [1, 0.45, 0.28, 0.18];
-  const STABLE_CORRECT = 7;
-  const STABLE_WRONG = 50;
+  const TUNE = _isMobile ? {
+    rmsMin: 0.0025,
+    maxCents: 55,
+    matchWindow: 8,
+    matchNeeded: 4,
+    wrongNeeded: 18,
+    detectMs: 45,
+    smoothHz: 5,
+    mic: { echoCancellation: true, noiseSuppression: false, autoGainControl: true },
+  } : {
+    rmsMin: 0.004,
+    maxCents: 50,
+    matchWindow: 6,
+    matchNeeded: 4,
+    wrongNeeded: 32,
+    detectMs: 30,
+    smoothHz: 3,
+    mic: { echoCancellation: true, noiseSuppression: false, autoGainControl: true },
+  };
 
   function drawNoteAt(svg, note, x, color, opacity) {
     if (!note) return;
@@ -1090,7 +1858,7 @@ function pickWeightedNote(exclude) {
     svg.appendChild(g);
   }
 
-  function renderLiveStaff(visible, flash) {
+  function renderLiveStaff(visible, flash, answerValid) {
     const svg=document.getElementById('l-staff');
     svg.innerHTML='';
     const defs=svgEl('defs',{}), gr=svgEl('linearGradient',{id:'lfade',x1:0,x2:1,y1:0,y2:0});
@@ -1112,14 +1880,19 @@ function pickWeightedNote(exclude) {
       const col=(i===0&&flash)?(flash==='correct'?'#4dcb78':'#e95555'):baseC;
       drawNoteAt(svg,note,NX[i],col,SOP[i]);
     });
+    if (flash && answerValid?.length && visible[0]) {
+      drawStaffAnswerHint(svg, NX[0], ny(visible[0].pos), answerValid, flash);
+    }
     svg.appendChild(svgEl('rect',{x:NX[2]+28,y:0,width:420-(NX[2]+28),height:250,fill:'url(#lfade)'}));
   }
 
   let buf=[], answered=0, locked=false;
   let okCnt=0, streak=0;
   let stableCount=0, wrongCount=0;
+  let matchWindow=[], hzSmooth=[];
 
-  let micStream=null, micCtx=null, micOwnsCtx=false, analyser=null, listening=false, rafId=null;
+  let micStream=null, micCtx=null, micOwnsCtx=false, analyser=null, listening=false;
+  let detectTimer=null, rafId=null;
 
   const fbEl=document.getElementById('l-fb');
   const hEl=document.getElementById('l-hint');
@@ -1127,25 +1900,66 @@ function pickWeightedNote(exclude) {
   const statusEl=document.getElementById('live-status');
   const startBtn=document.getElementById('live-start-btn');
   const skipBtn=document.getElementById('live-skip-btn');
+  const undoBtn=document.getElementById('live-undo-btn');
+  const needleEl=document.getElementById('live-needle');
+  const centsLblEl=document.getElementById('live-cents-lbl');
+  let advanceTimer=null;
+  let wrongPending=false;
 
   function fillBuf() {
-    while (buf.length < 4) buf.push(pickWeightedNote(buf[buf.length-1] ?? null));
+    while (buf.length < 4) buf.push(pickWeightedNote(buf));
   }
   function visible() { return buf.slice(0,4); }
   function cur() { return buf[0]; }
 
   function setProgress() {
-    document.getElementById('l-progress').style.width=((answered%NOTES.length)/NOTES.length*100)+'%';
+    const pool = getFilteredNotes().length;
+    document.getElementById('l-progress').style.width=((answered%Math.max(pool,1))/Math.max(pool,1)*100)+'%';
     document.getElementById('l-ctr').textContent='♩ '+(answered+1);
   }
 
   function resetDetect() {
     stableCount=0; wrongCount=0;
+    matchWindow=[]; hzSmooth=[];
     pitchEl.textContent='—';
     pitchEl.className='live-pitch';
   }
 
+  function smoothHz(hz) {
+    if (!TUNE.smoothHz) return hz;
+    if (!hz) return null;
+    hzSmooth.push(hz);
+    if (hzSmooth.length > TUNE.smoothHz) hzSmooth.shift();
+    const sorted=[...hzSmooth].sort((a,b)=>a-b);
+    return sorted[Math.floor(sorted.length / 2)];
+  }
+
+  function pushMatch(hit) {
+    if (!TUNE.matchWindow) return;
+    matchWindow.push(hit);
+    if (matchWindow.length > TUNE.matchWindow) matchWindow.shift();
+  }
+
+  function matchHits() {
+    return matchWindow.filter(Boolean).length;
+  }
+
+  function resetLiveBtns() {
+    document.querySelectorAll('#l-str .btn,#l-fng .btn').forEach(b => { b.className = 'btn'; b.disabled = true; });
+  }
+
+  function revealLiveAnswer(valid) {
+    resetLiveBtns();
+    valid.forEach(a => {
+      document.querySelector(`#l-str [data-s="${a.s}"]`)?.classList.add('reveal');
+      document.querySelector(`#l-fng [data-f="${a.f}"]`)?.classList.add('reveal');
+    });
+  }
+
   function advance() {
+    if (advanceTimer) { clearTimeout(advanceTimer); advanceTimer=null; }
+    undoBtn.classList.remove('visible');
+    wrongPending=false;
     buf.shift();
     fillBuf();
     answered++;
@@ -1156,81 +1970,130 @@ function pickWeightedNote(exclude) {
     setProgress();
     renderLiveStaff(visible(),null);
     resetDetect();
+    resetLiveBtns();
     skipBtn.disabled=!listening;
   }
 
-  function finishRound(flash, fbHtml, fbClass, hintText) {
+  function finishRound(flash, fbHtml, fbClass, hintText, valid) {
     locked=true;
     fbEl.innerHTML=fbHtml;
     fbEl.className='fb ' + fbClass;
     hEl.textContent=hintText;
-    renderLiveStaff(visible(),flash);
+    renderLiveStaff(visible(),flash, flash === 'wrong' ? valid : null);
+    if (flash === 'wrong' && valid?.length) revealLiveAnswer(valid);
     skipBtn.disabled=true;
-    setTimeout(advance, flash==='correct' ? 1100 : 1800);
+    if (advanceTimer) clearTimeout(advanceTimer);
+    if (flash === 'wrong') {
+      wrongPending=true;
+      undoBtn.classList.add('visible');
+      advanceTimer=setTimeout(() => { undoBtn.classList.remove('visible'); wrongPending=false; advance(); }, 2800);
+    } else {
+      advanceTimer=setTimeout(advance, 1100);
+    }
   }
 
   function onCorrect(heard) {
     const note=cur();
-    const valid=PITCH_MAP[note.pos]||[];
+    const valid=getValidFingerings(note.pos);
     okCnt++; streak++;
     recordAnswer(note, true);
+    sessionRecord(note, true);
     playTone(note.hz);
     document.getElementById('st-ok').textContent=okCnt;
     document.getElementById('st-streak').textContent=streak;
     const ans=valid.map(a=>`${a.s} str, f${a.f}`).join(' or ');
     finishRound('correct',
       `✅ <strong>${note.name}</strong> · heard ${heard.name}${ans ? ' · ' + ans : ''}`,
-      'correct', note.name);
+      'correct', note.name, null);
   }
 
   function onWrong(heard) {
     const note=cur();
-    const valid=PITCH_MAP[note.pos]||[];
+    const valid=getValidFingerings(note.pos);
     streak=0;
     recordAnswer(note, false);
+    sessionRecord(note, false);
     playWrong();
     document.getElementById('st-streak').textContent=0;
     const heardLabel=heard ? heard.name : 'another note';
     finishRound('wrong',
-      `❌ Expected <strong>${note.name}</strong> · heard ${heardLabel} · ${valid.map(a=>`${a.s} str, f${a.f}`).join(' or ')}`,
-      'wrong', note.name);
+      `❌ Expected <strong>${note.name}</strong> · heard ${heardLabel}`,
+      'wrong', note.name, valid);
+  }
+
+  function detectFrame() {
+    if (!listening || locked || !analyser || !micCtx) return;
+    const rawHz=detectPitchHz(analyser, micCtx.sampleRate, TUNE.rmsMin);
+    const hz=smoothHz(rawHz);
+    const target=cur();
+    if (!hz) {
+      pitchEl.textContent='—';
+      pitchEl.className='live-pitch';
+      if (needleEl) { needleEl.style.left='50%'; needleEl.className='cents-needle'; }
+      if (centsLblEl) centsLblEl.textContent='Play a note to see tuning';
+      if (!TUNE.matchWindow) { stableCount=0; wrongCount=0; }
+      return;
+    }
+    const targetHz=target?.hz;
+    if (targetHz && needleEl) {
+      const centsRaw=1200*Math.log2(hz/targetHz);
+      const clamped=Math.max(-50, Math.min(50, centsRaw));
+      needleEl.style.left=(50+clamped)+'%';
+      centsLblEl.textContent=(centsRaw>=0?'+':'')+Math.round(centsRaw)+' cents';
+    }
+    const heard=matchPitchToNote(hz, TUNE.maxCents);
+    if (heard) {
+      const cents=centsOff(hz, heard.hz);
+      pitchEl.textContent=heard.name + (cents > 12 ? ' ~' : '');
+      if (targetHz && needleEl) {
+        needleEl.className='cents-needle'+(heard.pos===target.pos?' match':' wrong');
+      }
+      if (heard.pos===target.pos) {
+        pitchEl.className='live-pitch match';
+        if (TUNE.matchWindow) {
+          pushMatch(true);
+          wrongCount=0;
+          if (matchHits() >= TUNE.matchNeeded) onCorrect(heard);
+        } else {
+          stableCount++;
+          wrongCount=0;
+          if (stableCount >= TUNE.matchNeeded) onCorrect(heard);
+        }
+      } else {
+        pitchEl.className='live-pitch wrong';
+        if (TUNE.matchWindow) {
+          pushMatch(false);
+          stableCount=0;
+          wrongCount++;
+          if (wrongCount >= TUNE.wrongNeeded) onWrong(heard);
+        } else {
+          stableCount=0;
+          wrongCount++;
+          if (wrongCount >= TUNE.wrongNeeded) onWrong(heard);
+        }
+      }
+    } else {
+      pitchEl.textContent=Math.round(hz)+' Hz';
+      pitchEl.className='live-pitch heard';
+      if (!TUNE.matchWindow) { stableCount=0; wrongCount=0; }
+    }
   }
 
   function detectLoop() {
     if (!listening) return;
-    if (!locked && analyser && micCtx) {
-      const hz=detectPitchHz(analyser, micCtx.sampleRate);
-      const target=cur();
-      if (!hz) {
-        pitchEl.textContent='—';
-        pitchEl.className='live-pitch';
-        stableCount=0;
-        wrongCount=0;
-      } else {
-        const heard=matchPitchToNote(hz);
-        if (heard) {
-          const cents=centsOff(hz, heard.hz);
-          pitchEl.textContent=heard.name + (cents > 12 ? ' ~' : '');
-          if (heard.pos===target.pos) {
-            pitchEl.className='live-pitch match';
-            stableCount++;
-            wrongCount=0;
-            if (stableCount>=STABLE_CORRECT) onCorrect(heard);
-          } else {
-            pitchEl.className='live-pitch wrong';
-            stableCount=0;
-            wrongCount++;
-            if (wrongCount>=STABLE_WRONG) onWrong(heard);
-          }
-        } else {
-          pitchEl.textContent=Math.round(hz)+' Hz';
-          pitchEl.className='live-pitch heard';
-          stableCount=0;
-          wrongCount=0;
-        }
-      }
-    }
+    detectFrame();
     rafId=requestAnimationFrame(detectLoop);
+  }
+
+  function startDetectLoop() {
+    stopDetectLoop();
+    if (TUNE.detectMs) detectTimer=setInterval(detectFrame, TUNE.detectMs);
+    else detectLoop();
+  }
+
+  function stopDetectLoop() {
+    if (detectTimer) { clearInterval(detectTimer); detectTimer=null; }
+    if (rafId) { cancelAnimationFrame(rafId); rafId=null; }
   }
 
   async function startMic() {
@@ -1246,15 +2109,13 @@ function pickWeightedNote(exclude) {
     try {
       unlockAudioSync();
       await unlockAudio();
-      micStream=await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-      });
+      micStream=await navigator.mediaDevices.getUserMedia({ audio: TUNE.mic });
       micCtx=audioCtx();
       micOwnsCtx=false;
       if (micCtx.state === 'suspended') await micCtx.resume();
       analyser=micCtx.createAnalyser();
       analyser.fftSize=4096;
-      analyser.smoothingTimeConstant=0.2;
+      analyser.smoothingTimeConstant=_isMobile ? 0.05 : 0.2;
       micCtx.createMediaStreamSource(micStream).connect(analyser);
       listening=true;
       startBtn.textContent='⏹ Stop';
@@ -1262,7 +2123,7 @@ function pickWeightedNote(exclude) {
       skipBtn.disabled=locked;
       statusEl.textContent='Listening — play the highlighted note';
       statusEl.className='live-status listening';
-      detectLoop();
+      startDetectLoop();
     } catch (err) {
       statusEl.textContent=err.name==='NotAllowedError'
         ? 'Microphone blocked — allow access in browser settings'
@@ -1274,7 +2135,7 @@ function pickWeightedNote(exclude) {
 
   function stopMic() {
     listening=false;
-    if (rafId) { cancelAnimationFrame(rafId); rafId=null; }
+    stopDetectLoop();
     if (micStream) micStream.getTracks().forEach(t=>t.stop());
     micStream=null;
     analyser=null;
@@ -1300,6 +2161,49 @@ function pickWeightedNote(exclude) {
   });
 
   liveModeHooks.leave = stopMic;
+
+  function resetLiveForFilter() {
+    buf = [];
+    answered = 0;
+    locked = false;
+    fillBuf();
+    setProgress();
+    renderLiveStaff(visible(), null);
+    resetDetect();
+    resetLiveBtns();
+    fbEl.textContent = 'Hold a steady note — we\'ll detect the pitch';
+    fbEl.className = 'fb';
+    hEl.textContent = 'Play the highlighted note on your violin';
+  }
+
+  wireStringFilterChips('l-string-filter');
+  wireFingerFilterChips('l-finger-filter');
+  wireDifficultyChips('l-difficulty');
+  onStringFilterChange(resetLiveForFilter);
+  sessionStart('live');
+
+  document.getElementById('l-hear-btn').addEventListener('click', () => {
+    unlockAudioSync();
+    hearNoteHz(cur()?.hz);
+  });
+
+  undoBtn.addEventListener('click', () => {
+    if (!wrongPending || !locked) return;
+    if (advanceTimer) clearTimeout(advanceTimer);
+    advanceTimer=null;
+    wrongPending=false;
+    undoBtn.classList.remove('visible');
+    if (_session.results.length) _session.results.pop();
+    locked=false;
+    streak=0;
+    document.getElementById('st-streak').textContent=0;
+    resetDetect();
+    resetLiveBtns();
+    renderLiveStaff(visible(), null);
+    fbEl.textContent='False alarm — try again';
+    fbEl.className='fb';
+    skipBtn.disabled=!listening;
+  });
 
   fillBuf();
   setProgress();
@@ -1595,6 +2499,41 @@ function pickWeightedNote(exclude) {
         n(1,null,4,294),
       ]
     },
+    {
+      id:'alphabet', title:'Alphabet Song', level:'beginner',
+      notes:[
+        n(1,null,1,294),n(3,'#',1,370),n(5,null,1,440),n(5,null,1,440), // D F# A A
+        n(6,null,1,494),n(6,null,1,494),n(5,null,2,440),                  // B B A.
+        n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),n(3,'#',1,370),   // G G F# F#
+        n(2,null,1,330),n(2,null,1,330),n(1,null,2,294),                  // E E D.
+      ]
+    },
+    {
+      id:'baa', title:'Baa Baa Black Sheep', level:'beginner',
+      notes:[
+        n(1,null,1,294),n(1,null,1,294),n(5,null,1,440),n(5,null,1,440), // D D A A
+        n(6,null,2,494),n(5,null,2,440),                                  // B. A.
+        n(1,null,1,294),n(1,null,1,294),n(5,null,1,440),n(5,null,1,440), // D D A A
+        n(6,null,2,494),n(5,null,2,440),                                  // B. A.
+      ]
+    },
+    {
+      id:'rowboat', title:'Row Your Boat', level:'intermediate',
+      notes:[
+        n(1,null,1,294),n(1,null,1,294),n(1,null,1,294),n(3,'#',1,370), // D D D F#
+        n(5,null,1,440),n(5,null,1,440),n(5,null,1,440),n(3,'#',1,370), // A A A F#
+        n(5,null,1,440),n(6,null,1,494),n(8,null,2,587),                  // A B D5.
+      ]
+    },
+    {
+      id:'canon', title:'Canon in D (theme)', level:'advanced', bpm: 72,
+      notes:[
+        n(1,null,1,294),n(3,'#',1,370),n(5,null,1,440),n(3,'#',1,370), // D F# A F#
+        n(2,null,1,330),n(1,null,1,294),n(1,null,2,294),                // E D D.
+        n(3,'#',1,370),n(5,null,1,440),n(6,null,1,494),n(5,null,1,440), // F# A B A
+        n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),                  // F# E D.
+      ]
+    },
   ];
 
   // ── SVG layout constants ──────────────────────────────
@@ -1640,24 +2579,20 @@ function pickWeightedNote(exclude) {
     g.querySelectorAll('.nopen').forEach(e => e.setAttribute('stroke', color));
   }
 
-  // Adds a small finger-number label just above the note head
-  function addFingerLabel(idx, finger) {
+  // Adds finger + string hint above a note (quiz feedback)
+  function addAnswerHint(idx, valid, mode) {
     const g = noteGroups[idx];
     if (!g) return;
-    g.querySelector('.flbl')?.remove(); // avoid duplicates
+    g.querySelector('.answer-hint')?.remove();
     const note = activeSong.notes[idx];
-    const row  = Math.floor(idx / NPR);
-    const col  = idx % NPR;
-    const x    = COL_X[col];
-    const y    = rowBLY(row) - (note.pos - 2) * NS_S;
-    const lbl  = svgEl('text', {
-      class:'flbl', x, y: y - 13,
-      'font-size': 11, 'font-weight': '800',
-      'font-family': 'sans-serif',
-      fill: '#4dcb78', 'text-anchor': 'middle'
-    });
-    lbl.textContent = String(finger);
-    g.appendChild(lbl);
+    if (note.rest) return;
+    const row = Math.floor(idx / NPR);
+    const col = idx % NPR;
+    const x = COL_X[col];
+    const y = rowBLY(row) - (note.pos - 2) * NS_S;
+    const hintG = svgEl('g', { class: 'answer-hint' });
+    drawStaffAnswerHint(hintG, x, y, valid, mode);
+    g.appendChild(hintG);
   }
 
   function renderSong(song) {
@@ -1748,19 +2683,52 @@ function pickWeightedNote(exclude) {
       }
 
       const str = primaryString(note.pos);
+      const strCol = STR_COL[str] || '#888';
+      const dotY = y - 16;
+
       g.appendChild(svgEl('circle', {
-        class: 'strdot', cx: x, cy: y - 16, r: 3.5,
-        fill: STR_COL[str] || '#888', opacity: 0.92,
+        class: 'strdot', cx: x, cy: dotY, r: showNotes ? 5 : 3.5,
+        fill: strCol, opacity: showNotes ? 1 : 0.85,
       }));
 
       if (showNotes) {
+        const fing = primaryFingering(note.pos);
+        const fTxt = fing.f === 0 ? '0' : String(fing.f);
+
+        g.appendChild(svgEl('circle', {
+          class: 'strdot-ring', cx: x, cy: dotY, r: 10,
+          fill: 'none', stroke: strCol, 'stroke-width': 2, opacity: 0.55,
+        }));
+
+        const badge = svgEl('g', { class: 'nfinger-badge' });
+        badge.appendChild(svgEl('rect', {
+          x: x - 11, y: y - 36, width: 22, height: 14, rx: 4,
+          fill: strCol, opacity: 0.22, stroke: strCol, 'stroke-width': 1.2,
+        }));
+        const ft = svgEl('text', {
+          class: 'nfinger', x, y: y - 26,
+          'font-size': 10, 'font-weight': '800', 'font-family': 'sans-serif',
+          fill: strCol, 'text-anchor': 'middle',
+        });
+        ft.textContent = fTxt;
+        badge.appendChild(ft);
+        g.appendChild(badge);
+
         const lbl = svgEl('text', {
           class: 'nnlbl', x, y: y + 18,
           'font-size': 9, 'font-weight': '700',
-          'font-family': 'sans-serif', fill: '#666', 'text-anchor': 'middle',
+          'font-family': 'sans-serif', fill: '#555', 'text-anchor': 'middle',
         });
-        lbl.textContent = note.name || pitchName(note.pos);
+        lbl.textContent = fing.name;
         g.appendChild(lbl);
+
+        const sl = svgEl('text', {
+          class: 'nstrlbl', x, y: y + 30,
+          'font-size': 8, 'font-weight': '700',
+          'font-family': 'sans-serif', fill: strCol, 'text-anchor': 'middle',
+        });
+        sl.textContent = `${fing.s} string`;
+        g.appendChild(sl);
       }
 
       svg.appendChild(g);
@@ -1829,6 +2797,60 @@ function pickWeightedNote(exclude) {
   const tempoSlider = document.getElementById('tempo-slider');
   const tempoLabel  = document.getElementById('tempo-label');
   const showNotesBtn = document.getElementById('show-notes-btn');
+  const playAlongBtn = document.getElementById('playalong-btn');
+  const playAlongPitch = document.getElementById('s-playalong-pitch');
+  let playAlong = false;
+  let paStream = null, paAnalyser = null, paCtx = null, paTimer = null;
+
+  window.__rerenderSongStaff = () => { if (activeSong) renderSong(activeSong); };
+
+  const keySigBtn = document.getElementById('key-sig-btn');
+  if (keySigBtn) {
+    keySigBtn.textContent = 'Key: ' + (KEY_SIG_OPTIONS[_activeKeySig]?.label || 'D major');
+    keySigBtn.classList.add('active');
+    keySigBtn.addEventListener('click', () => {
+      const order = ['D', 'C', 'G'];
+      const i = order.indexOf(_activeKeySig);
+      setKeySignature(order[(i + 1) % order.length]);
+    });
+  }
+
+  playAlongBtn?.addEventListener('click', () => {
+    playAlong = !playAlong;
+    playAlongBtn.classList.toggle('active', playAlong);
+    if (!playAlong) stopPlayAlongMic();
+  });
+
+  async function startPlayAlongMic() {
+    if (!playAlong || !navigator.mediaDevices?.getUserMedia) return;
+    try {
+      await unlockAudio();
+      paStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: true },
+      });
+      paCtx = audioCtx();
+      if (paCtx.state === 'suspended') await paCtx.resume();
+      paAnalyser = paCtx.createAnalyser();
+      paAnalyser.fftSize = 4096;
+      paCtx.createMediaStreamSource(paStream).connect(paAnalyser);
+      playAlongPitch.style.display = 'block';
+      paTimer = setInterval(() => {
+        if (!isPlaying) return;
+        const hz = detectPitchHz(paAnalyser, paCtx.sampleRate, 0.004);
+        if (!hz) { playAlongPitch.textContent = '—'; return; }
+        const heard = matchPitchToNote(hz, 50);
+        playAlongPitch.textContent = heard ? '🎤 ' + heard.name : '🎤 ' + Math.round(hz) + ' Hz';
+      }, 60);
+    } catch (_) {}
+  }
+
+  function stopPlayAlongMic() {
+    if (paTimer) { clearInterval(paTimer); paTimer = null; }
+    if (paStream) paStream.getTracks().forEach(t => t.stop());
+    paStream = null;
+    paAnalyser = null;
+    playAlongPitch.style.display = 'none';
+  }
 
   function applySongTempo(song) {
     playbackBpm = song?.bpm || 109;
@@ -1903,6 +2925,7 @@ function pickWeightedNote(exclude) {
     loadSamplerOnce();
     unlockAudio().finally(() => {
       if (gen !== playGen || !isPlaying) return;
+      startPlayAlongMic();
       playthroughNote(0, gen);
     });
   }
@@ -1968,6 +2991,7 @@ function pickWeightedNote(exclude) {
   function stopSong() {
     isPlaying = false; playGen++;
     cancelPlaythrough();
+    stopPlayAlongMic();
     sCtrl.style.display = 'none';
     _restoreButtons();
     moveCursor(-1);
@@ -2030,7 +3054,7 @@ function pickWeightedNote(exclude) {
       sFbEl.innerHTML=`✅ <strong>${valid[0].s} string, finger ${valid[0].f}</strong>`;
       sFbEl.className='fb correct';
       colorNote(songIdx, '#4dcb78');
-      addFingerLabel(songIdx, sSelF);
+      addAnswerHint(songIdx, [{ s: sSelS, f: sSelF }], 'correct');
       moveCursor(songIdx, 'rgba(77,203,120,.18)');
       sStat();
       setTimeout(advanceSong, 900);
@@ -2039,13 +3063,13 @@ function pickWeightedNote(exclude) {
       document.querySelector(`#s-str [data-s="${sSelS}"]`)?.classList.add('wrong');
       document.querySelector(`#s-fng [data-f="${sSelF}"]`)?.classList.add('wrong');
       valid.forEach(a=>{
-        document.querySelector(`#s-str [data-s="${a.s}"]`)?.classList.add('correct');
-        document.querySelector(`#s-fng [data-f="${a.f}"]`)?.classList.add('correct');
+        document.querySelector(`#s-str [data-s="${a.s}"]`)?.classList.add('reveal');
+        document.querySelector(`#s-fng [data-f="${a.f}"]`)?.classList.add('reveal');
       });
-      const ans=valid.map(a=>`${a.s} str, f${a.f}`).join(' or ');
-      sFbEl.innerHTML=`❌ <strong>${ans}</strong>`;
+      sFbEl.innerHTML=`❌ Expected <strong>${pitchName(note.pos)}</strong>`;
       sFbEl.className='fb wrong';
       colorNote(songIdx, '#e95555');
+      addAnswerHint(songIdx, valid, 'wrong');
       moveCursor(songIdx, 'rgba(233,85,85,.18)');
       setTimeout(advanceSong, 1600);
     }
@@ -2202,6 +3226,45 @@ function renderStats() {
 
   // ── Toughest notes ──
   const toughEl = document.getElementById('tough-notes');
+
+  // ── Session history ──
+  const hist = loadSessionHistory();
+  const chartEl = document.getElementById('history-chart');
+  const listEl = document.getElementById('history-list');
+  if (chartEl && listEl) {
+    const recent = hist.slice(0, 7).reverse();
+    if (!recent.length) {
+      chartEl.innerHTML = '<div class="stat-empty">Complete a 10-note session in Practice or Live</div>';
+      listEl.innerHTML = '';
+    } else {
+      chartEl.innerHTML = '<div class="history-row"></div>';
+      const row = chartEl.querySelector('.history-row');
+      recent.forEach(h => {
+        const wrap = document.createElement('div');
+        wrap.className = 'history-bar-wrap';
+        const bar = document.createElement('div');
+        bar.className = 'history-bar';
+        bar.style.height = Math.max(8, h.pct * 0.65) + 'px';
+        bar.style.background = accColor(h.pct);
+        const lbl = document.createElement('span');
+        lbl.className = 'history-lbl';
+        lbl.textContent = new Date(h.date).toLocaleDateString(undefined, { weekday: 'short' });
+        wrap.appendChild(bar);
+        wrap.appendChild(lbl);
+        row.appendChild(wrap);
+      });
+      listEl.innerHTML = '';
+      hist.slice(0, 8).forEach(h => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        const mode = h.mode === 'live' ? 'Live' : 'Practice';
+        div.innerHTML = `<span>${new Date(h.date).toLocaleString()} · <b>${mode}</b></span><span style="color:${accColor(h.pct)}">${h.ok}/${h.total} (${h.pct}%)</span>`;
+        listEl.appendChild(div);
+      });
+    }
+  }
+
+  // ── Toughest notes ──
   const ranked = NOTES
     .map(n => { const d = nd[n.s+n.f]||{a:0,c:0}; return {...n, a:d.a, c:d.c}; })
     .filter(n => n.a >= 3)
@@ -2234,6 +3297,12 @@ function renderStats() {
     try { localStorage.removeItem(STATS_KEY); } catch {}
     renderStats();
   };
+}
+
+initOnboarding();
+syncStringFilterUI();
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 </script>
 </body>

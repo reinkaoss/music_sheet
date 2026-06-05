@@ -1,6 +1,12 @@
 [build]
   publish = "."
 
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/"
+
 # Serve violin-reader.html at the root URL
 [[redirects]]
   from = "/"
