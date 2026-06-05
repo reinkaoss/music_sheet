@@ -144,6 +144,12 @@
     .fb.wrong   { color: var(--red);   background: var(--red-lo);   border: 1px solid rgba(233,85,85,.2);  animation: fadeUp .2s ease; }
 
     /* ── Song picker chips ─────────────────────────────── */
+    .song-picker { display: flex; flex-direction: column; gap: 10px; }
+    .song-group { display: flex; flex-direction: column; gap: 5px; }
+    .song-group-label {
+      font-size: .68rem; text-transform: uppercase; letter-spacing: .1em;
+      color: var(--muted); font-weight: 600; padding: 0 2px;
+    }
     .song-chips { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; }
     .song-chips::-webkit-scrollbar { display: none; }
     .chip {
@@ -178,6 +184,34 @@
     }
     .quiz-btn:active  { background: rgba(245,187,64,.1); }
     .quiz-btn:disabled{ opacity: .4; cursor: default; }
+
+    /* ── Tempo slider ──────────────────────────────────── */
+    .tempo-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 2px;
+    }
+    .tempo-row span { font-size: 1rem; line-height: 1; flex-shrink: 0; }
+    .tempo-row input[type=range] {
+      flex: 1; height: 4px; accent-color: var(--accent);
+      -webkit-appearance: none; appearance: none;
+      background: var(--border); border-radius: 99px;
+    }
+    .tempo-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 18px; height: 18px;
+      border-radius: 50%; background: var(--accent); cursor: pointer;
+    }
+    .tempo-label { font-size: .72rem; color: var(--muted); min-width: 58px; text-align: right; }
+
+    /* ── Staff toggles ─────────────────────────────────── */
+    .staff-toggles { display: flex; gap: 7px; flex-wrap: wrap; }
+    .toggle-btn {
+      padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 99px;
+      background: var(--surface); color: var(--sub);
+      font-size: .72rem; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color .14s, background .14s, color .14s;
+    }
+    .toggle-btn.active { border-color: var(--accent); background: #22193a; color: var(--accent); }
 
     /* ── Song end overlay ──────────────────────────────── */
     .song-end {
@@ -233,40 +267,22 @@
     }
     .reset-btn:active { background: rgba(233,85,85,.08); }
 
-    /* ── Upload zone ───────────────────────────────────── */
-    .upload-panel {
-      border: 1.5px dashed var(--border); border-radius: 14px;
-      padding: 18px 14px; text-align: center; cursor: pointer;
-      transition: border-color .15s, background .15s; position: relative;
-    }
-    .upload-panel:hover, .upload-panel.dragover {
-      border-color: var(--accent); background: rgba(245,187,64,.05);
-    }
-    .upload-panel input[type=file] {
-      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
-    }
-    .upload-icon  { font-size: 1.6rem; margin-bottom: 4px; }
-    .upload-title { font-size: .82rem; font-weight: 600; color: var(--text); }
-    .upload-hint  { font-size: .68rem; color: var(--muted); margin-top: 2px; }
-    .upload-status {
-      display: flex; align-items: center; gap: 8px;
-      padding: 9px 12px; border-radius: 10px; font-size: .8rem; font-weight: 500;
-      margin-top: 8px;
-    }
-    .upload-status.loading { background: rgba(245,187,64,.1); color: var(--accent); }
-    .upload-status.error   { background: rgba(233,85,85,.1);  color: var(--red); }
-    .upload-status.success { background: rgba(77,203,120,.1); color: var(--green); }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner {
-      width: 13px; height: 13px; border: 2px solid currentColor;
-      border-top-color: transparent; border-radius: 50%;
-      animation: spin .7s linear infinite; flex-shrink: 0;
-    }
-
     /* ── Animations ────────────────────────────────────── */
     @keyframes popIn  { 0%{transform:scale(.95)} 60%{transform:scale(1.06)} 100%{transform:scale(1)} }
     @keyframes shake  { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
     @keyframes fadeUp { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── Mobile audio unlock hint ──────────────────────── */
+    .audio-hint {
+      position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+      max-width: 420px; width: calc(100% - 24px);
+      padding: 10px 14px; border-radius: 12px; z-index: 200;
+      background: rgba(28, 26, 46, 0.94); border: 1px solid var(--accent);
+      color: var(--text); font-size: .78rem; font-weight: 600; text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,.45);
+      pointer-events: none;
+    }
+    .audio-hint.hidden { display: none; }
   </style>
 </head>
 <body>
@@ -282,6 +298,8 @@
     <div class="score-pill">🔥 <b id="st-streak">0</b></div>
   </div>
 </header>
+
+<div id="audio-hint" class="audio-hint">🔊 Tap anywhere to enable sound</div>
 
 <!-- ── Tab bar ──────────────────────────────────────────── -->
 <div class="tab-bar">
@@ -338,16 +356,7 @@
 <div id="tab-songs" class="tab-panel">
 
   <!-- Song picker -->
-  <div class="song-chips" id="song-chips"></div>
-
-  <!-- Upload panel (shown when Upload chip is active) -->
-  <div id="upload-panel" class="upload-panel" style="display:none">
-    <input type="file" id="sheet-file" accept="image/*">
-    <div class="upload-icon">🎼</div>
-    <div class="upload-title">Drop a sheet music photo or tap to browse</div>
-    <div class="upload-hint">JPG / PNG · single-line beginner pieces work best</div>
-  </div>
-  <div id="upload-status" class="upload-status" style="display:none"></div>
+  <div class="song-picker" id="song-picker"></div>
 
   <!-- Full-piece staff (scrollable) -->
   <div class="song-staff-wrap" id="song-staff-wrap">
@@ -357,6 +366,17 @@
   <div class="note-row">
     <span class="note-tag" id="s-hint">Select a song, then press Play</span>
     <span class="note-ctr" id="s-ctr">0 / 0</span>
+  </div>
+
+  <div class="staff-toggles">
+    <button class="toggle-btn" id="show-notes-btn">👁 Show notes</button>
+  </div>
+
+  <div class="tempo-row" id="tempo-row">
+    <span aria-hidden="true">🐢</span>
+    <input type="range" id="tempo-slider" min="50" max="160" value="109" aria-label="Playback tempo">
+    <span aria-hidden="true">🐇</span>
+    <span class="tempo-label" id="tempo-label">109 BPM</span>
   </div>
 
   <!-- Listen + Quiz buttons -->
@@ -427,6 +447,8 @@
 
 </div><!-- /tab-stats -->
 
+<script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
+
 <!-- ═══════════════════════════════════════════════════════
      SCRIPT
      ═══════════════════════════════════════════════════════ -->
@@ -462,37 +484,161 @@ const NOTES = [
 const PITCH_MAP = {};
 NOTES.forEach(n => (PITCH_MAP[n.pos] ??= []).push({s:n.s, f:n.f}));
 
-// ── SHARED AUDIO ──────────────────────────────────────────
-let _actx = null;
-function actx() {
-  if (!_actx) _actx = new (window.AudioContext||window.webkitAudioContext)();
-  if (_actx.state === 'suspended') _actx.resume();
-  return _actx;
+// D major key signature — F♯ and C♯ (no per-note accidental needed)
+const KEY_SIG_SHARPS = [3, 7];
+function noteNeedsAccidental(note) {
+  return note.acc === '#' && !KEY_SIG_SHARPS.includes(note.pos);
 }
-function playTone(hz, dur=1.2, vol=0.15) {
+
+const POS_NAMES = {
+  '-3':'G3','-2':'A3','-1':'B3','0':'C4','1':'D4','2':'E4','3':'F♯4','4':'G4',
+  '5':'A4','6':'B4','7':'C♯5','8':'D5','9':'E5','10':'F♯5','11':'G♯5','12':'A5','13':'B5',
+};
+function pitchName(pos) {
+  return POS_NAMES[String(pos)] || '?';
+}
+
+function primaryString(pos) {
+  return NOTES.find(n => n.pos === pos)?.s || PITCH_MAP[pos]?.[0]?.s || 'G';
+}
+const STR_COL = { G:'#4dcb78', D:'#7062ab', A:'#f5bb40', E:'#e8834a' };
+
+function msPerBeatFromBpm(bpm) { return 60000 / bpm; }
+
+// ── SHARED AUDIO (Tone.js violin sampler + oscillator fallback) ──
+const SF_BASE = 'https://gleitz.github.io/midi-js-soundfonts/MusyngKite/violin-mp3/';
+let _sampler = null, _audioReady = false, _audioFailed = false, _audioLoad = null;
+let _audioUnlocked = false;
+const SF_TIMEOUT_MS = 10000;
+
+function hideAudioHint() {
+  document.getElementById('audio-hint')?.classList.add('hidden');
+}
+
+function hzToNote(hz) {
+  if (typeof Tone !== 'undefined') return Tone.Frequency(hz, 'hz').toNote();
+  return 'A4';
+}
+
+function audioCtx() {
+  if (typeof Tone !== 'undefined' && Tone.context) return Tone.context.rawContext;
+  return actxLegacy();
+}
+let _legacyActx = null;
+function actxLegacy() {
+  if (!_legacyActx) _legacyActx = new (window.AudioContext || window.webkitAudioContext)();
+  return _legacyActx;
+}
+
+/** Mobile Safari blocks audio until a user gesture unlocks the context. */
+async function unlockAudio() {
+  if (_audioUnlocked) return;
   try {
-    const c=actx(), t=c.currentTime;
-    const o=c.createOscillator(), f=c.createBiquadFilter(), g=c.createGain();
-    o.type='sawtooth'; o.frequency.value=hz;
-    f.type='lowpass'; f.frequency.value=Math.min(hz*5,8000); f.Q.value=0.7;
-    g.gain.setValueAtTime(0,t);
-    g.gain.linearRampToValueAtTime(vol,t+0.025);
-    g.gain.setValueAtTime(vol,t+0.12);
-    g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    if (typeof Tone !== 'undefined') await Tone.start();
+    const legacy = actxLegacy();
+    if (legacy.state === 'suspended') await legacy.resume();
+    if (typeof Tone !== 'undefined' && Tone.context?.state === 'suspended') {
+      await Tone.context.resume();
+    }
+    _audioUnlocked = true;
+    hideAudioHint();
+  } catch (_) {}
+}
+
+function loadSampler() {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      ok ? resolve() : reject(new Error('sampler load failed'));
+    };
+    const timer = setTimeout(() => done(false), SF_TIMEOUT_MS);
+    try {
+      _sampler = new Tone.Sampler({
+        urls: { A3:'A3.mp3', D4:'D4.mp3', A4:'A4.mp3', A5:'A5.mp3' },
+        baseUrl: SF_BASE,
+        onload: () => { clearTimeout(timer); done(true); },
+      }).toDestination();
+      _sampler.volume.value = -4;
+    } catch (e) {
+      clearTimeout(timer);
+      reject(e);
+    }
+  });
+}
+
+function loadSamplerOnce() {
+  if (_audioReady || _audioFailed) return Promise.resolve();
+  if (_audioLoad) return _audioLoad;
+  if (typeof Tone === 'undefined') { _audioFailed = true; return Promise.resolve(); }
+
+  _audioLoad = loadSampler()
+    .then(() => { _audioReady = true; })
+    .catch(() => { _audioFailed = true; _sampler = null; });
+  return _audioLoad;
+}
+
+function ensureAudio() {
+  return unlockAudio().then(() => loadSamplerOnce());
+}
+
+// Unlock on first tap — required for iOS / Android Chrome
+document.addEventListener('pointerdown', () => { unlockAudio(); }, { passive: true, capture: true });
+
+function playToneOsc(hz, dur, vol, when) {
+  try {
+    const c = audioCtx();
+    if (c.state === 'suspended') return;
+    const t = when != null ? when : c.currentTime + 0.02;
+    const o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
+    o.type = 'sawtooth'; o.frequency.value = hz;
+    f.type = 'lowpass'; f.frequency.value = Math.min(hz * 5, 8000); f.Q.value = 0.7;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.025);
+    g.gain.setValueAtTime(vol, t + 0.12);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     o.connect(f); f.connect(g); g.connect(c.destination);
-    o.start(t); o.stop(t+dur+0.1);
-  } catch(_){}
+    o.start(t); o.stop(t + dur + 0.1);
+  } catch (_) {}
 }
-function playWrong() {
+
+function playToneInner(hz, dur, vol, when) {
+  const t = when != null ? when : audioCtx().currentTime + 0.02;
+  if (_sampler && _audioReady) {
+    _sampler.triggerAttackRelease(hzToNote(hz), dur, t, Math.min(1, vol * 5));
+    return;
+  }
+  playToneOsc(hz, dur, vol, t);
+}
+
+function playTone(hz, dur = 1.2, vol = 0.15, when) {
+  unlockAudio().then(() => {
+    loadSamplerOnce();
+    playToneInner(hz, dur, vol, when);
+  });
+}
+
+function stopAllNotes() {
   try {
-    const c=actx(), t=c.currentTime;
-    const o=c.createOscillator(), g=c.createGain();
-    o.type='sawtooth';
-    o.frequency.setValueAtTime(180,t); o.frequency.linearRampToValueAtTime(90,t+0.18);
-    g.gain.setValueAtTime(0.09,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.22);
-    o.connect(g); g.connect(c.destination);
-    o.start(t); o.stop(t+0.25);
-  } catch(_){}
+    if (_sampler && _audioReady) _sampler.releaseAll(0);
+  } catch (_) {}
+}
+
+function playWrong() {
+  unlockAudio().then(() => {
+    try {
+      const c = audioCtx();
+      if (c.state === 'suspended') return;
+      const t = c.currentTime;
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(180, t); o.frequency.linearRampToValueAtTime(90, t + 0.18);
+      g.gain.setValueAtTime(0.09, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      o.connect(g); g.connect(c.destination);
+      o.start(t); o.stop(t + 0.25);
+    } catch (_) {}
+  });
 }
 
 // ── SHARED SVG HELPER ─────────────────────────────────────
@@ -504,15 +650,40 @@ function svgEl(tag, attrs) {
 }
 
 // ── TAB SWITCHING ─────────────────────────────────────────
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-    if (btn.dataset.tab === 'stats') renderStats();
+const TAB_ORDER = ['practice', 'songs', 'stats'];
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === name);
   });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-' + name);
+  });
+  if (name === 'stats') renderStats();
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
+
+// Swipe left/right between tabs (mobile)
+(function() {
+  let sx = 0, sy = 0;
+  document.body.addEventListener('touchstart', e => {
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+  }, { passive: true });
+  document.body.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    const cur = document.querySelector('.tab-btn.active')?.dataset.tab;
+    const i = TAB_ORDER.indexOf(cur);
+    if (i < 0) return;
+    if (dx < 0 && i < TAB_ORDER.length - 1) switchTab(TAB_ORDER[i + 1]);
+    else if (dx > 0 && i > 0) switchTab(TAB_ORDER[i - 1]);
+  }, { passive: true });
+})();
 
 // ── STATS & ADAPTIVE QUEUE ────────────────────────────────
 // Persisted in localStorage as { notes: { 'G0': {a,c}, 'D2': {a,c}, … } }
@@ -576,8 +747,8 @@ function pickWeightedNote(exclude) {
       for(let p=12;p<=hi;p+=2)
         g.appendChild(svgEl('line',{x1:x-LHW,x2:x+LHW,y1:ny(p),y2:ny(p),stroke:color,'stroke-width':1.3}));
     }
-    if (note.acc)
-      g.appendChild(Object.assign(svgEl('text',{x:x-17,y:y+5,'font-size':17,'font-family':"Georgia,serif",fill:color,'text-anchor':'middle'}),{textContent:'♯'}));
+    if (note.acc && noteNeedsAccidental(note))
+      g.appendChild(Object.assign(svgEl('text',{class:'nacc',x:x-17,y:y+5,'font-size':17,'font-family':"Georgia,serif",fill:color,'text-anchor':'middle'}),{textContent:'♯'}));
     const up=note.pos<6;
     g.appendChild(svgEl('ellipse',{cx:x,cy:y,rx:9,ry:6.5,fill:color,transform:`rotate(-15,${x},${y})`}));
     const sx=up?x+7.5:x-7.5, sy2=up?y-NS*7:y+NS*7;
@@ -712,33 +883,6 @@ function pickWeightedNote(exclude) {
   renderPractice(visible(),null);
 })();
 
-// ── NOTE MAP (name → game format) ────────────────────────
-// Used by the upload feature to convert GPT output → song notes
-const NOTE_MAP = {
-  'G3': {pos:-3,acc:null,hz:196.00}, 'A3': {pos:-2,acc:null,hz:220.00},
-  'B3': {pos:-1,acc:null,hz:246.94}, 'C4': {pos: 0,acc:null,hz:261.63},
-  'D4': {pos: 1,acc:null,hz:293.66}, 'E4': {pos: 2,acc:null,hz:329.63},
-  'F#4':{pos: 3,acc:'#', hz:369.99}, 'G4': {pos: 4,acc:null,hz:392.00},
-  'A4': {pos: 5,acc:null,hz:440.00}, 'B4': {pos: 6,acc:null,hz:493.88},
-  'C#5':{pos: 7,acc:'#', hz:554.37}, 'D5': {pos: 8,acc:null,hz:587.33},
-  'E5': {pos: 9,acc:null,hz:659.25}, 'F#5':{pos:10,acc:'#', hz:739.99},
-  'G#5':{pos:11,acc:'#', hz:830.61}, 'A5': {pos:12,acc:null,hz:880.00},
-  'B5': {pos:13,acc:null,hz:987.77},
-};
-// Common enharmonic aliases → normalise to sharps
-const ENHARMONIC = {
-  'Gb4':'F#4','Ab4':'G#4','Bb4':'A#4','Cb5':'B4','Db5':'C#5',
-  'Eb5':'D#5','Fb5':'E5','Ab5':'G#5','Bb5':'A#5',
-};
-function gptNoteToGame(noteName, durRaw) {
-  const key = ENHARMONIC[noteName] || noteName;
-  const m   = NOTE_MAP[key];
-  if (!m) return null; // outside range — skip
-  const DUR = {eighth:0.5,quarter:1,half:2,'dotted half':3,'dotted-half':3,whole:4};
-  const dur = typeof durRaw === 'number' ? durRaw : (DUR[String(durRaw).toLowerCase()] ?? 1);
-  return { pos:m.pos, acc:m.acc, dur:Math.max(0.5,Math.min(4,dur)), hz:m.hz };
-}
-
 // ═══════════════════════════════════════════════════════════
 //  SONGS MODE
 // ═══════════════════════════════════════════════════════════
@@ -747,10 +891,11 @@ function gptNoteToGame(noteName, durRaw) {
   const n=(pos,acc,dur,hz)=>({pos,acc,dur,hz});
 
   // ── Songs data ────────────────────────────────────────
-  // dur: 1=quarter, 2=half, 4=whole  (all in 4/4 time)
+  // level: beginner | intermediate | advanced
+  // dur: 1=quarter, 2=half, 4=whole  (all in 4/4 unless timeSig set)
   const SONGS = [
     {
-      id:'hotcross', title:'Hot Cross Buns',
+      id:'hotcross', title:'Hot Cross Buns', level:'beginner',
       notes:[
         n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),  // F# E D.
         n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),  // F# E D.
@@ -760,7 +905,7 @@ function gptNoteToGame(noteName, durRaw) {
       ]
     },
     {
-      id:'mary', title:'Mary Had a Little Lamb',
+      id:'mary', title:'Mary Had a Little Lamb', level:'beginner',
       notes:[
         n(3,'#',1,370),n(2,null,1,330),n(1,null,1,294),n(2,null,1,330), // F# E D E
         n(3,'#',1,370),n(3,'#',1,370),n(3,'#',2,370),   // F# F# F#.
@@ -773,7 +918,7 @@ function gptNoteToGame(noteName, durRaw) {
       ]
     },
     {
-      id:'twinkle', title:'Twinkle Twinkle',
+      id:'twinkle', title:'Twinkle Twinkle', level:'beginner',
       notes:[
         n(1,null,1,294),n(1,null,1,294),n(5,null,1,440),n(5,null,1,440), // D D A A
         n(6,null,1,494),n(6,null,1,494),n(5,null,2,440),                  // B B A.
@@ -790,7 +935,7 @@ function gptNoteToGame(noteName, durRaw) {
       ]
     },
     {
-      id:'ode', title:'Ode to Joy',
+      id:'ode', title:'Ode to Joy', level:'intermediate',
       notes:[
         n(3,'#',1,370),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),  // F# F# G A
         n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330), // A G F# E
@@ -802,34 +947,274 @@ function gptNoteToGame(noteName, durRaw) {
         n(2,null,2,330),n(1,null,1,294),n(1,null,1,294),                 // E. D D
       ]
     },
+    {
+      id:'lightly', title:'Lightly Row', level:'beginner',
+      notes:[
+        n(1,null,1,294),n(1,null,1,294),n(1,null,1,294),                   // D D D
+        n(2,null,1,330),n(2,null,1,330),n(2,null,1,330),                   // E E E
+        n(3,'#',1,370),n(3,'#',1,370),n(3,'#',1,370),n(3,'#',1,370),n(2,null,1,330),n(2,null,1,330),n(2,null,1,330), // F# F# F# F# E E E
+        n(1,null,1,294),n(1,null,1,294),n(1,null,1,294),                   // D D D
+        n(5,null,1,440),n(5,null,1,440),n(5,null,1,440),                   // A A A
+        n(4,null,1,392),n(4,null,1,392),n(4,null,1,392),                   // G G G
+        n(3,'#',1,370),n(3,'#',1,370),n(3,'#',1,370),n(3,'#',1,370),n(2,null,1,330),n(2,null,1,330),n(2,null,1,330), // F# F# F# F# E E E
+        n(1,null,1,294),n(1,null,1,294),n(1,null,1,294),                   // D D D
+        n(1,null,1,294),n(1,null,1,294),n(5,null,1,440),                   // D D A
+        n(5,null,1,440),n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),n(3,'#',1,370),n(2,null,1,330), // A G G F# F# E
+        n(1,null,1,294),n(1,null,1,294),n(5,null,1,440),                   // D D A
+        n(5,null,1,440),n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),n(3,'#',1,370),n(2,null,1,330), // A G G F# F# E
+      ]
+    },
+    {
+      id:'rhody', title:'Go Tell Aunt Rhody', level:'intermediate',
+      notes:[
+        n(5,null,1,440),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),   // A A G F#
+        n(2,null,1,330),n(2,null,1,330),n(1,null,2,294),                  // E E D.
+        n(5,null,1,440),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),   // A A G F#
+        n(2,null,1,330),n(2,null,1,330),n(1,null,2,294),                  // E E D.
+        n(5,null,1,440),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,1,294), // A A G F# E D
+        n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(3,'#',1,370),n(2,null,2,330), // E F# G F# E.
+        n(5,null,1,440),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),   // A A G F#
+        n(2,null,1,330),n(2,null,1,330),n(1,null,2,294),                  // E E D.
+      ]
+    },
+    {
+      id:'frere', title:'Frère Jacques', level:'intermediate',
+      notes:[
+        n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),                   // F# G A
+        n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),                   // F# G A
+        n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(8,null,1,587),  // A B C# D
+        n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(8,null,1,587),  // A B C# D
+        n(8,null,1,587),n(7,'#',1,554),n(6,null,1,494),n(5,null,1,440),  // D C# B A
+        n(4,null,1,392),n(3,'#',1,370),n(3,'#',2,370),                   // G F# F#.
+        n(8,null,1,587),n(7,'#',1,554),n(6,null,1,494),n(5,null,1,440),  // D C# B A
+        n(4,null,1,392),n(3,'#',1,370),n(3,'#',2,370),                   // G F# F#.
+        n(3,'#',1,370),n(3,'#',1,370),n(4,null,1,392),n(3,'#',1,370),  // F# F# G F#
+        n(1,null,1,294),n(1,null,2,294),                                  // D D.
+        n(3,'#',1,370),n(3,'#',1,370),n(4,null,1,392),n(3,'#',1,370),  // F# F# G F#
+        n(1,null,1,294),n(1,null,2,294),                                  // D D.
+      ]
+    },
+    {
+      id:'rowboat', title:'Row Row Row Your Boat', level:'intermediate',
+      notes:[
+        n(1,null,1,294),n(1,null,1,294),n(1,null,1,294),n(2,null,1,330), // D D D E
+        n(2,null,1,330),n(2,null,1,330),n(2,null,1,330),n(3,'#',1,370),  // E E E F#
+        n(3,'#',1,370),n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294), // F# G G F# E D.
+        n(1,null,1,294),n(5,null,1,440),n(5,null,1,440),n(4,null,1,392), // D A A G
+        n(4,null,1,392),n(3,'#',1,370),n(3,'#',1,370),n(2,null,1,330),    // G F# F# E
+        n(2,null,1,330),n(1,null,1,294),n(1,null,2,294),                   // E D D.
+      ]
+    },
+    {
+      id:'birthday', title:'Happy Birthday', level:'intermediate',
+      notes:[
+        n(1,null,1,294),n(1,null,1,294),                                   // D D
+        n(2,null,1,330),n(1,null,1,294),n(4,null,1,392),n(3,'#',1,370),  // E D G F#
+        n(1,null,1,294),n(1,null,1,294),                                   // D D
+        n(2,null,1,330),n(1,null,1,294),n(5,null,1,440),n(4,null,1,392), // E D A G
+        n(1,null,1,294),n(1,null,1,294),n(8,null,1,587),n(6,null,1,494),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330), // D D D5 B G F# E
+        n(7,'#',1,554),n(7,'#',1,554),n(6,null,1,494),n(4,null,1,392),n(5,null,1,440),n(4,null,2,392), // C#5 C#5 B G A G.
+      ]
+    },
+    {
+      id:'jingle', title:'Jingle Bells', level:'intermediate',
+      notes:[
+        n(1,null,1,294),n(1,null,1,294),n(1,null,1,294),                   // D D D
+        n(1,null,1,294),n(1,null,1,294),n(1,null,1,294),                   // D D D
+        n(1,null,1,294),n(4,null,1,392),n(5,null,1,440),n(1,null,2,294),  // D G A D.
+        n(6,null,1,494),n(6,null,1,494),n(6,null,1,494),n(6,null,1,494),n(6,null,1,494),n(5,null,1,440),n(5,null,1,440), // B B B B B A A
+        n(5,null,1,440),n(4,null,1,392),n(5,null,1,440),n(4,null,1,392),n(1,null,2,294), // A G A G D.
+      ]
+    },
+    {
+      id:'london', title:'London Bridge', level:'beginner',
+      notes:[
+        n(3,'#',1,370),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),  // F# G F# E
+        n(3,'#',1,370),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),  // F# G F# E
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294), // D E F# E D.
+        n(3,'#',1,370),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),  // F# G F# E
+        n(3,'#',1,370),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),  // F# G F# E
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294), // D E F# E D.
+      ]
+    },
+    {
+      id:'saints', title:'When the Saints', level:'beginner',
+      notes:[
+        n(1,null,1,294),n(1,null,1,294),n(1,null,1,294),n(1,null,1,294), // D D D D
+        n(2,null,1,330),n(2,null,1,330),n(1,null,2,294),                  // E E D.
+        n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),                   // G G F#
+        n(2,null,1,330),n(1,null,1,294),n(1,null,2,294),                  // E D D.
+        n(1,null,1,294),n(1,null,1,294),n(1,null,1,294),n(1,null,1,294), // D D D D
+        n(2,null,1,330),n(2,null,1,330),n(1,null,2,294),                  // E E D.
+        n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),                   // G G F#
+        n(2,null,1,330),n(1,null,1,294),n(1,null,4,294),                  // E D D(whole)
+      ]
+    },
+    {
+      id:'swan', title:'The Swan', level:'advanced',
+      bpm: 66,
+      timeSig: [3, 4],
+      notes:[
+        n(1,null,3,294),                                                    // D (long opening)
+        n(3,'#',0.5,370),n(5,null,0.5,440),n(8,null,0.5,587),n(10,'#',0.5,740), // F# A D F#
+        n(9,null,0.5,659),n(8,null,0.5,587),n(7,'#',0.5,554),n(6,null,0.5,494), // E D C# B
+        n(5,null,2,440),                                                    // A.
+        n(8,null,0.5,587),n(10,'#',0.5,740),n(12,null,0.5,880),n(10,'#',0.5,740), // D F# A F#
+        n(9,null,0.5,659),n(8,null,0.5,587),n(7,'#',0.5,554),n(6,null,0.5,494), // E D C# B
+        n(5,null,0.5,440),n(4,null,0.5,392),n(3,'#',0.5,370),n(2,null,0.5,330), // A G F# E
+        n(1,null,4,294),                                                    // D (whole)
+        // A section repeat
+        n(3,'#',0.5,370),n(5,null,0.5,440),n(8,null,0.5,587),n(10,'#',0.5,740),
+        n(9,null,0.5,659),n(8,null,0.5,587),n(7,'#',0.5,554),n(6,null,0.5,494),
+        n(5,null,2,440),
+        n(8,null,0.5,587),n(10,'#',0.5,740),n(12,null,0.5,880),n(10,'#',0.5,740),
+        n(9,null,0.5,659),n(8,null,0.5,587),n(7,'#',0.5,554),n(6,null,0.5,494),
+        n(5,null,0.5,440),n(4,null,0.5,392),n(3,'#',0.5,370),n(2,null,0.5,330),
+        n(1,null,4,294),
+      ]
+    },
+    {
+      id:'avemaria', title:'Ave Maria', level:'advanced',
+      bpm: 60,
+      notes:[
+        n(1,null,2,294), n(1,null,1,294), n(1,null,1,294), n(5,null,2,440), // D. D D A.
+        n(5,null,1,440), n(4,null,1,392), n(5,null,1,440), n(1,null,2,294), // A G A D.
+        n(1,null,1,294), n(1,null,1,294), n(1,null,1,294), n(1,null,1,294), // D D D D
+        n(10,'#',1,740), n(12,null,1,880), n(11,'#',1,830.61), n(10,'#',1,740), n(8,null,2,587), // F#5 A5 G#5 F#5 D5.
+        n(8,null,1,587), n(8,null,1,587), n(8,null,1,587), n(8,null,1,587),             // D5 D5 D5 D5
+        n(11,'#',1,830.61), n(10,'#',1,740), n(11,'#',1,830.61), n(12,null,1,880),           // G#5 F#5 G#5 A5
+        n(8,null,2,587), n(8,null,1,587), n(8,null,1,587),                               // D5. D5 D5
+        n(1,null,2,294), n(1,null,1,294), n(1,null,1,294), n(5,null,2,440),             // D. D D A.
+        n(5,null,1,440), n(4,null,1,392), n(5,null,1,440), n(1,null,4,294),             // A G A D(whole)
+      ]
+    },
+    {
+      id:'minuet', title:'Minuet (Bach)', level:'advanced',
+      bpm: 112,
+      timeSig: [3, 4],
+      notes:[
+        n(1,null,1,294),n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370), // D D E F#
+        n(3,'#',1,370),n(2,null,1,330),n(1,null,1,294),n(2,null,1,330), // F# E D E
+        n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(5,null,1,440), // F# G A A
+        n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,1,294), // G F# E D
+        n(1,null,1,294),n(1,null,1,294),n(5,null,1,440),n(1,null,1,294), // D D A D
+        n(1,null,2,294),                                                  // D.
+        n(3,'#',1,370),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440), // F# F# G A
+        n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(4,null,1,392), // A G F# G
+        n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(7,'#',1,554), // A B C# C#
+        n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370), // B A G F#
+        n(3,'#',1,370),n(3,'#',1,370),n(7,'#',1,554),n(3,'#',1,370),   // F# F# C# F#
+        n(3,'#',2,370),                                                  // F#.
+        // A section repeat
+        n(1,null,1,294),n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),
+        n(3,'#',1,370),n(2,null,1,330),n(1,null,1,294),n(2,null,1,330),
+        n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(5,null,1,440),
+        n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,1,294),
+        n(1,null,1,294),n(1,null,1,294),n(5,null,1,440),n(1,null,1,294),
+        n(1,null,2,294),
+      ]
+    },
+    {
+      id:'furelise', title:'Für Elise', level:'advanced',
+      bpm: 72,
+      notes:[
+        n(9,null,1,659),n(8,'#',1,622),n(9,null,1,659),n(8,'#',1,622),n(9,null,1,659), // E D# E D# E
+        n(6,null,1,494),n(8,null,1,587),n(7,null,1,523),n(5,null,1,440),             // B D C(nat) A
+        n(5,null,1,440),n(7,null,1,523),n(9,null,1,659),n(12,null,1,880),n(6,null,1,494), // A C E A B
+        n(9,null,1,659),n(8,'#',1,622),n(9,null,1,659),n(8,'#',1,622),n(9,null,1,659), // E D# E D# E
+        n(6,null,1,494),n(8,null,1,587),n(7,null,1,523),n(2,null,1,330),n(5,null,1,440), // B D C E A
+        n(2,null,1,330),n(5,null,1,440),                                              // E A
+        n(9,null,1,659),n(8,'#',1,622),n(9,null,1,659),n(8,'#',1,622),n(9,null,1,659), // E D# E D# E
+        n(6,null,1,494),n(8,null,1,587),n(7,null,1,523),n(5,null,1,440),             // B D C A
+        n(5,null,1,440),n(7,null,1,523),n(9,null,1,659),n(12,null,1,880),n(6,null,1,494), // A C E A B
+        n(8,null,1,587),n(7,null,1,523),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370), // D C A G F#
+        n(2,null,1,330),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),             // E F# E D.
+      ]
+    },
+    {
+      id:'moonlight', title:'Moonlight Sonata', level:'advanced',
+      bpm: 52,
+      notes:[
+        // Opening arpeggio pulse (C#m — top voice simplified)
+        n(7,'#',1,554),n(4,'#',1,415),n(7,'#',1,554),n(9,null,1,659),
+        n(7,'#',1,554),n(4,'#',1,415),n(7,'#',1,554),n(9,null,1,659),
+        n(6,null,1,494),n(4,'#',1,415),n(6,null,1,494),n(9,null,1,659),
+        n(7,'#',1,554),n(4,'#',1,415),n(7,'#',1,554),n(9,null,1,659),
+        // Melody entrance
+        n(4,'#',1,415),n(4,'#',1,415),n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),
+        n(6,null,1,494),n(5,null,1,440),n(4,'#',1,415),n(5,null,1,440),n(4,'#',1,415),n(2,null,1,330),
+        n(4,'#',1,415),n(4,'#',1,415),n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),
+        n(6,null,1,494),n(5,null,1,440),n(4,'#',1,415),n(5,null,1,440),n(4,'#',1,415),n(2,null,1,330),
+        n(2,null,1,330),n(4,'#',1,415),n(2,null,1,330),n(1,null,1,294),n(4,'#',1,415),n(2,null,1,330),n(1,null,2,294),
+        // Return of arpeggio pulse
+        n(7,'#',1,554),n(4,'#',1,415),n(7,'#',1,554),n(9,null,1,659),
+        n(7,'#',1,554),n(4,'#',1,415),n(7,'#',1,554),n(9,null,1,659),
+        n(7,'#',1,554),n(4,'#',1,415),n(7,'#',1,554),n(9,null,2,659),
+      ]
+    },
+    {
+      id:'air', title:'Air on the G String', level:'advanced',
+      bpm: 60,
+      timeSig: [4, 4],
+      notes:[
+        n(8,null,2,587),n(3,'#',1,370),n(5,null,1,440),n(3,'#',1,370), // D5. F# A F#
+        n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494), // E F# G A B
+        n(8,null,2,587),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330), // D5. B A G F# E
+        n(1,null,2,294),                                                  // D.
+        n(3,'#',1,370),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494), // F# F# G A B
+        n(8,null,2,587),n(7,'#',1,554),n(6,null,1,494),n(5,null,1,440), // D5. C# B A
+        n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440), // G F# E F# G A
+        n(3,'#',1,370),n(1,null,1,294),n(1,null,2,294),                  // F# D D.
+        // Second phrase echo
+        n(8,null,2,587),n(3,'#',1,370),n(5,null,1,440),n(3,'#',1,370),
+        n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),
+        n(8,null,2,587),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),
+        n(1,null,4,294),
+      ]
+    },
   ];
 
   // ── SVG layout constants ──────────────────────────────
-  const S_W  = 400;     // SVG viewBox width
-  const NS_S = 8;       // px per note step
-  const ROW_H= 112;     // px per staff row
-  const NPR  = 7;       // notes per row
-  const TC_W = 36;      // faint clef overlay — notes start much sooner
+  const S_W  = 400;
+  const NS_S = 8;
+  const ROW_H= 112;
+  const NPR  = 7;
+  const TC_W = 36;
+  const KS_X = 22; // key-signature sharps x offset
 
-  // Pre-compute note x positions per column within a row
-  const spc = (S_W - TC_W - 6) / NPR;  // ≈ 46.6
+  const spc = (S_W - TC_W - 6) / NPR;
   const COL_X = Array.from({length:NPR}, (_,i) => TC_W + spc*0.5 + i*spc);
-  // ≈ [91, 138, 184, 231, 277, 324, 370]
 
-  // y of E4 (bottom staff line) for a given row
   const rowBLY = row => row * ROW_H + 80;
-  // Staff line y coords for row r
   const sly = (row,pos) => rowBLY(row) - (pos-2)*NS_S;
 
-  // ── Render full song SVG ──────────────────────────────
-  let noteGroups = []; // SVG <g> elements, one per note
+  let noteGroups = [];
+  let showNotes = false;
+  let playbackBpm = 109;
+
+  function getMsPerBeat() {
+    return msPerBeatFromBpm(playbackBpm);
+  }
+
+  function drawKeySignature(svg, bly) {
+    KEY_SIG_SHARPS.forEach((pos, i) => {
+      const y = bly - (pos - 2) * NS_S + 4;
+      const t = svgEl('text', {
+        class: 'keysig', x: KS_X + i * 11, y,
+        'font-size': 13, 'font-family': 'Georgia,serif', fill: '#666', 'text-anchor': 'middle',
+      });
+      t.textContent = '♯';
+      svg.appendChild(t);
+    });
+  }
 
   function colorNote(idx, color) {
     const g = noteGroups[idx];
     if (!g) return;
-    g.querySelectorAll('ellipse').forEach(e=>e.setAttribute('fill',color));
-    g.querySelectorAll('line').forEach(l=>l.setAttribute('stroke',color));
-    g.querySelectorAll('text').forEach(t=>t.setAttribute('fill',color));
+    g.querySelectorAll('.nhead').forEach(e => e.setAttribute('fill', color));
+    g.querySelectorAll('.nstem, .nledger').forEach(l => l.setAttribute('stroke', color));
+    g.querySelectorAll('.nacc').forEach(t => t.setAttribute('fill', color));
+    g.querySelectorAll('.nopen').forEach(e => e.setAttribute('stroke', color));
   }
 
   // Adds a small finger-number label just above the note head
@@ -860,90 +1245,102 @@ function gptNoteToGame(noteName, durRaw) {
     const rows  = Math.ceil(song.notes.length / NPR);
     const svgH  = rows * ROW_H + 12;
     svg.setAttribute('viewBox', `0 0 ${S_W} ${svgH}`);
-    // height:auto in CSS — wrapper sizes itself to SVG content naturally
 
-    // Background
     svg.appendChild(svgEl('rect',{x:0,y:0,width:S_W,height:svgH,fill:'#fefbf0'}));
 
-    // Draw each row's staff
     for (let r = 0; r < rows; r++) {
       const bly = rowBLY(r);
-      // Ghost clef drawn first — staff lines will render on top of it
       const tc=svgEl('text',{x:1,y:bly-(4-2)*NS_S+11,'font-size':52,'font-family':"Georgia,serif",fill:'#555',opacity:0.2});
       tc.textContent='𝄞'; svg.appendChild(tc);
-      // Lines from x=0 so they run seamlessly through the clef glyph
       [2,4,6,8,10].forEach(pos => {
         const y = bly - (pos-2)*NS_S;
         svg.appendChild(svgEl('line',{x1:0,x2:S_W-4,y1:y,y2:y,stroke:'#c0bfba','stroke-width':1.1}));
       });
-      // Thin bar line marking end of clef area
       const t=bly-(8)*NS_S, b=bly;
       svg.appendChild(svgEl('line',{x1:TC_W,x2:TC_W,y1:t,y2:b,stroke:'#bbb','stroke-width':1.4}));
+      drawKeySignature(svg, bly);
     }
 
-    // Draw notes + bar lines
     let beats = 0;
+    const beatsPerBar = song.timeSig?.[0] || 4;
     song.notes.forEach((note, i) => {
       const row = Math.floor(i / NPR);
       const col = i % NPR;
       const x   = COL_X[col];
       const bly = rowBLY(row);
-      const y   = bly - (note.pos - 2) * NS_S;
       const LHW = 12;
 
-      // Bar line before this note (if new measure and not first note of row)
-      if (beats > 0 && beats % 4 === 0 && col > 0) {
+      if (beats > 0 && beats % beatsPerBar === 0 && col > 0) {
         const prevX = COL_X[col-1];
         const barX  = (x + prevX) / 2;
         const staffT = bly - 8*NS_S, staffB = bly;
         svg.appendChild(svgEl('line',{x1:barX,x2:barX,y1:staffT,y2:staffB,stroke:'#aaa','stroke-width':1.1}));
       }
 
-      // Note group
       const g = svgEl('g', {id:`sn-${i}`, cursor:'pointer'});
+      noteGroups.push(g);
 
-      // Ledger lines below
+      if (note.rest) {
+        const restEl = svgEl('text', {
+          class: 'nrest', x, y: bly - 4 * NS_S + 5,
+          'font-size': 16, 'font-family': 'Georgia,serif', fill: '#888', 'text-anchor': 'middle',
+        });
+        restEl.textContent = '𝄽';
+        g.appendChild(restEl);
+        svg.appendChild(g);
+        beats += note.dur;
+        return;
+      }
+
+      const y = bly - (note.pos - 2) * NS_S;
+
       if (note.pos < 2) {
         const low = note.pos%2===0 ? note.pos : note.pos+1;
         for (let p=0; p>=low&&p<=0; p-=2)
-          g.appendChild(svgEl('line',{x1:x-LHW,x2:x+LHW,y1:bly-(p-2)*NS_S,y2:bly-(p-2)*NS_S,stroke:'#888','stroke-width':1.1}));
+          g.appendChild(svgEl('line',{class:'nledger',x1:x-LHW,x2:x+LHW,y1:bly-(p-2)*NS_S,y2:bly-(p-2)*NS_S,stroke:'#888','stroke-width':1.1}));
       }
-      // Ledger lines above
       if (note.pos > 10) {
         const hi = note.pos%2===0 ? note.pos : note.pos-1;
         for (let p=12; p<=hi; p+=2)
-          g.appendChild(svgEl('line',{x1:x-LHW,x2:x+LHW,y1:bly-(p-2)*NS_S,y2:bly-(p-2)*NS_S,stroke:'#888','stroke-width':1.1}));
+          g.appendChild(svgEl('line',{class:'nledger',x1:x-LHW,x2:x+LHW,y1:bly-(p-2)*NS_S,y2:bly-(p-2)*NS_S,stroke:'#888','stroke-width':1.1}));
       }
 
-      // Accidental
-      if (note.acc) {
-        const at=svgEl('text',{x:x-14,y:y+4,'font-size':13,'font-family':"Georgia,serif",fill:'#888','text-anchor':'middle'});
+      if (noteNeedsAccidental(note)) {
+        const at=svgEl('text',{class:'nacc',x:x-14,y:y+4,'font-size':13,'font-family':"Georgia,serif",fill:'#888','text-anchor':'middle'});
         at.textContent='♯'; g.appendChild(at);
       }
 
-      // Note head
       const up = note.pos < 6;
-      g.appendChild(svgEl('ellipse',{cx:x,cy:y,rx:7.5,ry:5.2,fill:'#888',transform:`rotate(-15,${x},${y})`}));
+      g.appendChild(svgEl('ellipse',{class:'nhead',cx:x,cy:y,rx:7.5,ry:5.2,fill:'#888',transform:`rotate(-15,${x},${y})`}));
 
-      // Stem
       const sx = up ? x+6.5 : x-6.5;
       const sy2= up ? y-NS_S*6 : y+NS_S*6;
-      g.appendChild(svgEl('line',{x1:sx,x2:sx,y1:y,y2:sy2,stroke:'#888','stroke-width':1.5}));
+      g.appendChild(svgEl('line',{class:'nstem',x1:sx,x2:sx,y1:y,y2:sy2,stroke:'#888','stroke-width':1.5}));
 
-      // Duration tail (half note = open head)
       if (note.dur >= 2) {
-        // Draw inner white ellipse to make it look open (half/whole note)
-        g.appendChild(svgEl('ellipse',{cx:x,cy:y,rx:5,ry:3.2,fill:'#fefbf0',transform:`rotate(-15,${x},${y})`}));
+        g.appendChild(svgEl('ellipse',{class:'nopen',cx:x,cy:y,rx:5,ry:3.2,fill:'#fefbf0',transform:`rotate(-15,${x},${y})`}));
       }
       if (note.dur === 4) {
-        // Whole note: remove stem, wider head
-        // (We keep the stem hidden by making head wider; simplification)
-        // Just double-outline for whole note feel
-        g.appendChild(svgEl('ellipse',{cx:x,cy:y,rx:8.5,ry:6,fill:'none',stroke:'#888','stroke-width':1.2,transform:`rotate(-15,${x},${y})`}));
+        g.appendChild(svgEl('ellipse',{class:'nopen',cx:x,cy:y,rx:8.5,ry:6,fill:'none',stroke:'#888','stroke-width':1.2,transform:`rotate(-15,${x},${y})`}));
+      }
+
+      const str = primaryString(note.pos);
+      g.appendChild(svgEl('circle', {
+        class: 'strdot', cx: x, cy: y - 16, r: 3.5,
+        fill: STR_COL[str] || '#888', opacity: 0.92,
+      }));
+
+      if (showNotes) {
+        const lbl = svgEl('text', {
+          class: 'nnlbl', x, y: y + 18,
+          'font-size': 9, 'font-weight': '700',
+          'font-family': 'sans-serif', fill: '#666', 'text-anchor': 'middle',
+        });
+        lbl.textContent = note.name || pitchName(note.pos);
+        g.appendChild(lbl);
       }
 
       svg.appendChild(g);
-      noteGroups.push(g);
       beats += note.dur;
     });
 
@@ -1006,10 +1403,35 @@ function gptNoteToGame(noteName, durRaw) {
   const sFbEl    = document.getElementById('s-fb');
   const sCtrl    = document.getElementById('s-controls');
   const songEnd  = document.getElementById('song-end');
+  const tempoSlider = document.getElementById('tempo-slider');
+  const tempoLabel  = document.getElementById('tempo-label');
+  const showNotesBtn = document.getElementById('show-notes-btn');
+
+  function applySongTempo(song) {
+    playbackBpm = song?.bpm || 109;
+    tempoSlider.value = playbackBpm;
+    tempoLabel.textContent = playbackBpm + ' BPM';
+  }
+
+  tempoSlider.addEventListener('input', () => {
+    playbackBpm = +tempoSlider.value;
+    tempoLabel.textContent = playbackBpm + ' BPM';
+  });
+
+  showNotesBtn.addEventListener('click', () => {
+    showNotes = !showNotes;
+    showNotesBtn.classList.toggle('active', showNotes);
+    showNotesBtn.textContent = showNotes ? '👁 Hide notes' : '👁 Show notes';
+    if (activeSong) renderSong(activeSong);
+  });
+
+  function pitchNoteCount(song) {
+    return song ? song.notes.filter(n => !n.rest).length : 0;
+  }
 
   function sStat() {
     sCtrEl.textContent = activeSong
-      ? `${sOk} / ${activeSong.notes.length} ✅`
+      ? `${sOk} / ${pitchNoteCount(activeSong)} ✅`
       : '0 / 0';
   }
   function setSLocked(v) {
@@ -1021,8 +1443,21 @@ function gptNoteToGame(noteName, durRaw) {
     document.querySelectorAll('#s-str .btn,#s-fng .btn').forEach(b=>b.className='btn');
   }
 
+  // Listen-through timers — cleared on stop / song change
+  let playthroughTimer = null;
+  let playthroughFinishTimer = null;
+
+  function cancelPlaythrough() {
+    if (playthroughTimer) clearTimeout(playthroughTimer);
+    if (playthroughFinishTimer) clearTimeout(playthroughFinishTimer);
+    playthroughTimer = null;
+    playthroughFinishTimer = null;
+    stopAllNotes();
+  }
+
   // Shared setup called by both startSong and startQuizDirectly
   function _beginSession() {
+    cancelPlaythrough();
     isPlaying = true; playGen++;
     songIdx = 0; sOk = 0;
     noteGroups.forEach((_,i) => colorNote(i, '#888'));
@@ -1041,7 +1476,40 @@ function gptNoteToGame(noteName, durRaw) {
     _beginSession();
     const gen = playGen;
     sHintEl.textContent = '🎵 Listen to the whole song…';
-    playthroughNote(0, gen);
+    unlockAudio().finally(() => {
+      if (gen !== playGen || !isPlaying) return;
+      loadSamplerOnce();
+      playthroughNote(0, gen);
+    });
+  }
+
+  // One note at a time — reads live BPM each step; timers cancel on stop
+  function playthroughNote(idx, gen) {
+    if (gen !== playGen || !isPlaying) return;
+    if (idx >= activeSong.notes.length) {
+      noteGroups.forEach((_, i) => colorNote(i, '#888'));
+      moveCursor(-1);
+      sHintEl.textContent = '✅ Now identify each note!';
+      playthroughFinishTimer = setTimeout(() => {
+        if (gen === playGen && isPlaying) startIdentification(gen);
+      }, 400);
+      return;
+    }
+
+    const note = activeSong.notes[idx];
+    if (idx > 0) colorNote(idx - 1, '#888');
+    colorNote(idx, note.rest ? '#bbb' : '#f5bb40');
+    moveCursor(idx);
+    scrollToNote(idx);
+
+    const ms = note.dur * getMsPerBeat();
+
+    if (!note.rest) {
+      const toneSec = Math.max(0.08, Math.min(ms / 1000 * 0.92, ms / 1000 - 0.02));
+      playTone(note.hz, toneSec, 0.45);
+    }
+
+    playthroughTimer = setTimeout(() => playthroughNote(idx + 1, gen), ms);
   }
 
   // Skip listen-through, go straight to note identification
@@ -1050,30 +1518,10 @@ function gptNoteToGame(noteName, durRaw) {
     _beginSession();
     const gen = playGen;
     sHintEl.textContent = '🎯 Identify each note!';
-    startIdentification(gen);
-  }
-
-  // Auto-plays every note in sequence, then launches the ID game
-  function playthroughNote(idx, gen) {
-    if (gen !== playGen || !isPlaying) return; // stopped
-    if (idx >= activeSong.notes.length) {
-      // Playthrough done — reset colours and start identification
-      noteGroups.forEach((_,i) => colorNote(i, '#888'));
-      moveCursor(-1);
-      // Brief pause so the user knows we're switching phases
-      sHintEl.textContent = '✅ Now identify each note!';
-      setTimeout(() => { if (gen === playGen) startIdentification(gen); }, 600);
-      return;
-    }
-    const note = activeSong.notes[idx];
-    // Un-highlight previous note
-    if (idx > 0) colorNote(idx-1, '#888');
-    colorNote(idx, '#f5bb40');
-    moveCursor(idx);
-    scrollToNote(idx);
-    playTone(note.hz, 0.55, 0.14);
-    const ms = note.dur * 550; // 550 ms per beat (quarter = 550 ms)
-    setTimeout(() => playthroughNote(idx + 1, gen), ms);
+    unlockAudio().finally(() => {
+      loadSamplerOnce();
+      startIdentification(gen);
+    });
   }
 
   // Called after playthrough — walk user through note-by-note identification
@@ -1093,6 +1541,7 @@ function gptNoteToGame(noteName, durRaw) {
 
   function stopSong() {
     isPlaying = false; playGen++;
+    cancelPlaythrough();
     sCtrl.style.display = 'none';
     _restoreButtons();
     moveCursor(-1);
@@ -1105,15 +1554,16 @@ function gptNoteToGame(noteName, durRaw) {
   function playCurrentNote() {
     if (!isPlaying || songIdx >= activeSong.notes.length) { finishSong(); return; }
     const note = activeSong.notes[songIdx];
+    if (note.rest) { songIdx++; playCurrentNote(); return; }
     colorNote(songIdx, '#f5bb40');
     moveCursor(songIdx);
     scrollToNote(songIdx);
     setSLocked(false);
     resetSBtns();
-    sHintEl.textContent = `Note ${songIdx+1} / ${activeSong.notes.length} · identify it!`;
+    sHintEl.textContent = `Note ${activeSong.notes.slice(0, songIdx + 1).filter(n => !n.rest).length} / ${pitchNoteCount(activeSong)} · identify it!`;
     sFbEl.textContent = '';
     sFbEl.className = 'fb';
-    playTone(note.hz, 0.55);
+    playTone(note.hz, 0.7, 0.4);
   }
 
   function advanceSong() {
@@ -1129,8 +1579,8 @@ function gptNoteToGame(noteName, durRaw) {
     moveCursor(-1);
     sStat();
     // Show end card
-    const total = activeSong.notes.length;
-    const pct   = Math.round(sOk/total*100);
+    const total = pitchNoteCount(activeSong);
+    const pct   = total > 0 ? Math.round(sOk / total * 100) : 0;
     document.getElementById('end-emoji').textContent = pct>=80?'🎉':pct>=50?'👍':'💪';
     document.getElementById('end-msg').textContent   = `${sOk} / ${total} correct  (${pct}%)`;
     songEnd.classList.add('visible');
@@ -1148,7 +1598,7 @@ function gptNoteToGame(noteName, durRaw) {
 
     if (good) {
       sOk++;
-      playTone(note.hz, 0.8);
+      playTone(note.hz, 0.9, 0.5);
       document.querySelector(`#s-str [data-s="${sSelS}"]`)?.classList.add('correct');
       document.querySelector(`#s-fng [data-f="${sSelF}"]`)?.classList.add('correct');
       sFbEl.innerHTML=`✅ <strong>${valid[0].s} string, finger ${valid[0].f}</strong>`;
@@ -1176,194 +1626,61 @@ function gptNoteToGame(noteName, durRaw) {
   }
 
   // ── Song chip UI ──────────────────────────────────────
-  const chipsEl = document.getElementById('song-chips');
-  SONGS.forEach(song => {
-    const chip = document.createElement('button');
-    chip.className = 'chip';
-    chip.textContent = song.title;
-    chip.addEventListener('click', () => {
-      if (isPlaying) stopSong();
-      activeSong = song;
-      sOk = 0; songIdx = 0;
-      cursorEl = null;
-      document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
-      chip.classList.add('active');
-      // Make sure staff + play button are visible (may have been hidden by upload view)
-      document.getElementById('upload-panel').style.display = 'none';
-      document.getElementById('upload-status').style.display = 'none';
-      document.getElementById('song-staff-wrap').style.display = '';
-      playBtn.style.display = '';
-      songEnd.classList.remove('visible');
-      sCtrl.style.display = 'none';
-      playBtn.disabled = false; quizBtn.disabled = false;
-      playBtn.textContent = '▶ Listen First';
-      playBtn.classList.remove('stop');
-      sHintEl.textContent = `${song.title} · ${song.notes.length} notes`;
-      sStat();
-      renderSong(song);
-      document.getElementById('song-staff-wrap').scrollTop = 0;
-    });
-    chipsEl.appendChild(chip);
-  });
+  const SONG_LEVELS = [
+    { id: 'beginner',     label: 'Beginner' },
+    { id: 'intermediate', label: 'Intermediate' },
+    { id: 'advanced',     label: 'Advanced' },
+  ];
 
-  // ── Upload chip ───────────────────────────────────────
-  const uploadChip = document.createElement('button');
-  uploadChip.className = 'chip';
-  uploadChip.style.cssText = 'border-color:#2c2845;color:var(--sub)';
-  uploadChip.textContent = '📷 Upload';
-  uploadChip.addEventListener('click', () => {
-    const isOpen = document.getElementById('upload-panel').style.display !== 'none';
-    // Close: hide panel, deselect chip, reselect last song chip
-    if (isOpen) {
-      document.getElementById('upload-panel').style.display = 'none';
-      document.getElementById('upload-status').style.display = 'none';
-      uploadChip.classList.remove('active');
-      chipsEl.querySelector('.chip:not([style*="border-color:#2c2845"])')?.click();
-    } else {
-      document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
-      uploadChip.classList.add('active');
-      document.getElementById('upload-panel').style.display = 'block';
-      document.getElementById('upload-status').style.display = 'none';
-      // Hide song UI
-      document.getElementById('song-staff-wrap').style.display = 'none';
-      playBtn.style.display = 'none';
-      sCtrl.style.display = 'none';
-      songEnd.classList.remove('visible');
-      sHintEl.textContent = 'Upload a sheet to add it as a song';
-      sCtrEl.textContent  = '';
-    }
-  });
-  chipsEl.appendChild(uploadChip);
-
-  // ── Image → base64 (with resize) ─────────────────────
-  function resizeAndEncode(file) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        const MAX = 1400;
-        const r = Math.min(MAX / img.width, MAX / img.height, 1);
-        const c = document.createElement('canvas');
-        c.width  = Math.round(img.width  * r);
-        c.height = Math.round(img.height * r);
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        URL.revokeObjectURL(url);
-        // Strip "data:image/jpeg;base64," prefix
-        const dataUrl = c.toDataURL('image/jpeg', 0.85);
-        resolve(dataUrl.split(',')[1]);
-      };
-      img.onerror = reject;
-      img.src = url;
-    });
+  function selectSong(song, chip) {
+    if (isPlaying) stopSong();
+    activeSong = song;
+    sOk = 0; songIdx = 0;
+    cursorEl = null;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    document.getElementById('song-staff-wrap').style.display = '';
+    playBtn.style.display = '';
+    songEnd.classList.remove('visible');
+    sCtrl.style.display = 'none';
+    playBtn.disabled = false; quizBtn.disabled = false;
+    playBtn.textContent = '▶ Listen First';
+    playBtn.classList.remove('stop');
+    sHintEl.textContent = `${song.title} · ${song.notes.length} notes`;
+    sStat();
+    applySongTempo(song);
+    renderSong(song);
+    document.getElementById('song-staff-wrap').scrollTop = 0;
   }
 
-  // ── Status helper ─────────────────────────────────────
-  function setUploadStatus(type, html) {
-    const el = document.getElementById('upload-status');
-    if (!type) { el.style.display = 'none'; return; }
-    el.className = `upload-status ${type}`;
-    el.style.display = 'flex';
-    el.innerHTML = type === 'loading'
-      ? `<div class="spinner"></div><span>${html}</span>`
-      : `<span>${html}</span>`;
-  }
+  const pickerEl = document.getElementById('song-picker');
+  SONG_LEVELS.forEach(({ id, label }) => {
+    const songs = SONGS.filter(s => s.level === id);
+    if (!songs.length) return;
 
-  // ── File selected ─────────────────────────────────────
-  async function handleFile(file) {
-    if (!file || !file.type.startsWith('image/')) {
-      setUploadStatus('error', '❌ Please select an image file (JPG or PNG).');
-      return;
-    }
-    setUploadStatus('loading', 'Resizing image…');
+    const group = document.createElement('div');
+    group.className = 'song-group';
 
-    let b64;
-    try { b64 = await resizeAndEncode(file); }
-    catch { setUploadStatus('error', '❌ Could not read the image.'); return; }
+    const heading = document.createElement('div');
+    heading.className = 'song-group-label';
+    heading.textContent = label;
+    group.appendChild(heading);
 
-    if (window.location.protocol === 'file:') {
-      setUploadStatus('error', '❌ Upload requires the deployed site. Open <strong>musicsheets.netlify.app</strong> instead of the local file.');
-      return;
-    }
-
-    setUploadStatus('loading', 'Sending to GPT-4o — reading notes…');
-
-    let result;
-    try {
-      const res = await fetch('/api/parse-sheet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: b64, mimeType: file.type }),
-      });
-      result = await res.json();
-      if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`);
-    } catch (err) {
-      setUploadStatus('error', `❌ ${err.message}`);
-      return;
-    }
-
-    // Convert GPT notes → game format
-    const gameNotes = (result.notes || [])
-      .map(({note, dur}) => gptNoteToGame(note, dur))
-      .filter(Boolean);
-
-    if (gameNotes.length < 2) {
-      setUploadStatus('error', '❌ Couldn\'t extract enough notes. Try a clearer photo of a simpler piece.');
-      return;
-    }
-
-    const title = (result.title || 'Uploaded Sheet').slice(0, 40);
-    setUploadStatus('success', `✅ Found ${gameNotes.length} notes — "${title}" added!`);
-
-    // Build new song and inject a chip
-    const newSong = { id: 'upload_' + Date.now(), title, notes: gameNotes };
-    SONGS.push(newSong);
-
-    const newChip = document.createElement('button');
-    newChip.className = 'chip';
-    newChip.textContent = title;
-    newChip.addEventListener('click', () => {
-      if (isPlaying) stopSong();
-      activeSong = newSong;
-      sOk = 0; songIdx = 0; cursorEl = null;
-      document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
-      newChip.classList.add('active');
-      songEnd.classList.remove('visible');
-      sCtrl.style.display = 'none';
-      document.getElementById('song-staff-wrap').style.display = '';
-      playBtn.style.display = ''; quizBtn.style.display = '';
-      playBtn.textContent = '▶ Listen First';
-      playBtn.classList.remove('stop');
-      playBtn.disabled = false;
-      sHintEl.textContent = `${newSong.title} · ${newSong.notes.length} notes`;
-      sStat();
-      renderSong(newSong);
-      document.getElementById('song-staff-wrap').scrollTop = 0;
+    const row = document.createElement('div');
+    row.className = 'song-chips';
+    songs.forEach(song => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = song.title;
+      chip.addEventListener('click', () => selectSong(song, chip));
+      row.appendChild(chip);
     });
-    // Insert before the upload chip
-    chipsEl.insertBefore(newChip, uploadChip);
-
-    // Auto-select the new song after a short delay
-    setTimeout(() => newChip.click(), 800);
-  }
-
-  // File input change
-  document.getElementById('sheet-file').addEventListener('change', e => {
-    handleFile(e.target.files[0]);
-    e.target.value = ''; // allow re-selecting same file
+    group.appendChild(row);
+    pickerEl.appendChild(group);
   });
 
-  // Drag & drop
-  const uploadPanel = document.getElementById('upload-panel');
-  uploadPanel.addEventListener('dragover',  e => { e.preventDefault(); uploadPanel.classList.add('dragover'); });
-  uploadPanel.addEventListener('dragleave', () => uploadPanel.classList.remove('dragover'));
-  uploadPanel.addEventListener('drop', e => {
-    e.preventDefault();
-    uploadPanel.classList.remove('dragover');
-    handleFile(e.dataTransfer.files[0]);
-  });
-
-  // Auto-select first song
-  chipsEl.querySelector('.chip')?.click();
+  // Auto-select first beginner song
+  pickerEl.querySelector('.chip')?.click();
 
   // ── Play/Stop + Quiz buttons ──────────────────────────
   playBtn.addEventListener('click', () => {
