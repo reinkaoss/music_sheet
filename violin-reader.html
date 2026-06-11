@@ -914,9 +914,9 @@ NOTES.forEach(n => (PITCH_MAP[n.pos] ??= []).push({s:n.s, f:n.f}));
 // D major key signature — F♯ and C♯ (no per-note accidental needed)
 let KEY_SIG_SHARPS = [3, 7];
 const KEY_SIG_OPTIONS = {
-  D: { label: 'D major', sharps: [3, 7] },
-  C: { label: 'C major', sharps: [] },
-  G: { label: 'G major', sharps: [6] },
+  D: { label: 'D major', sharps: [3, 7], semitones: 0 },
+  C: { label: 'C major', sharps: [], semitones: -2 },
+  G: { label: 'G major', sharps: [3], semitones: 7 },
 };
 let _activeKeySig = 'D';
 const KEYSIG_KEY = 'violin_reader_keysig_v1';
@@ -936,6 +936,22 @@ function setKeySignature(key) {
   const btn = document.getElementById('key-sig-btn');
   if (btn) { btn.dataset.key = key; btn.textContent = 'Key: ' + KEY_SIG_OPTIONS[key].label; btn.classList.add('active'); }
   if (typeof window.__rerenderSongStaff === 'function') window.__rerenderSongStaff();
+}
+function keySigSemitones() {
+  return KEY_SIG_OPTIONS[_activeKeySig]?.semitones ?? 0;
+}
+function transposeHz(hz, semitones) {
+  if (!hz || !semitones) return hz;
+  return hz * Math.pow(2, semitones / 12);
+}
+/** Song data is in D major — transpose pitch + staff position for the active key. */
+function songPitch(rawNote) {
+  if (!rawNote || rawNote.rest) return rawNote;
+  const semitones = keySigSemitones();
+  const hz = transposeHz(rawNote.hz, semitones);
+  const match = matchPitchToNote(hz, 40);
+  if (!match) return { ...rawNote, hz };
+  return { pos: match.pos, acc: match.acc, hz: match.hz, name: match.name, dur: rawNote.dur, rest: false };
 }
 function noteNeedsAccidental(note) {
   return note.acc === '#' && !KEY_SIG_SHARPS.includes(note.pos);
@@ -2626,7 +2642,7 @@ function pickWeightedNote(recentNotes) {
       ]
     },
     {
-      id:'minuet', title:'Minuet (Bach)', level:'advanced',
+      id:'minuet1', title:'Minuet 1 (Bach)', level:'suzuki1', suzukiNo:13,
       bpm: 112,
       timeSig: [3, 4],
       notes:[
@@ -2744,6 +2760,128 @@ function pickWeightedNote(recentNotes) {
         n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),                  // F# E D.
       ]
     },
+    // ── Suzuki Violin School · Volume 1 (missing pieces) ──
+    {
+      id:'songwind', title:'Song of the Wind', level:'suzuki1', suzukiNo:3,
+      notes:[
+        n(2,null,1,330),n(2,null,1,330),n(3,'#',1,370),n(3,'#',1,370),n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),
+        n(2,null,1,330),n(2,null,1,330),n(1,null,1,294),n(1,null,1,294),n(2,null,1,330),n(2,null,1,330),n(1,null,2,294),
+        n(2,null,1,330),n(2,null,1,330),n(3,'#',1,370),n(3,'#',1,370),n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),
+        n(2,null,1,330),n(2,null,1,330),n(1,null,1,294),n(1,null,1,294),n(2,null,1,330),n(2,null,1,330),n(1,null,2,294),
+      ]
+    },
+    {
+      id:'ocome', title:'O Come, Little Children', level:'suzuki1', suzukiNo:5,
+      notes:[
+        n(2,null,1,330),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),
+        n(2,null,1,330),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),
+        n(2,null,1,330),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),
+        n(2,null,1,330),n(2,null,1,330),n(1,null,2,294),
+      ]
+    },
+    {
+      id:'maysong', title:'May Song', level:'suzuki1', suzukiNo:6,
+      notes:[
+        n(2,null,1,330),n(2,null,1,330),n(3,'#',1,370),n(3,'#',1,370),n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),
+        n(2,null,1,330),n(2,null,1,330),n(1,null,1,294),n(1,null,1,294),n(2,null,1,330),n(2,null,1,330),n(1,null,2,294),
+        n(2,null,1,330),n(2,null,1,330),n(3,'#',1,370),n(3,'#',1,370),n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),
+        n(2,null,1,330),n(2,null,1,330),n(1,null,1,294),n(1,null,1,294),n(2,null,1,330),n(2,null,1,330),n(1,null,2,294),
+      ]
+    },
+    {
+      id:'longago', title:'Long, Long Ago', level:'suzuki1', suzukiNo:7, bpm: 96,
+      notes:[
+        n(4,null,1,392),n(4,null,1,392),n(5,null,1,440),n(5,null,1,440),n(6,null,1,494),n(6,null,1,494),n(5,null,2,440),
+        n(4,null,1,392),n(4,null,1,392),n(5,null,1,440),n(5,null,1,440),n(6,null,1,494),n(6,null,1,494),n(5,null,2,440),
+        n(4,null,1,392),n(4,null,1,392),n(6,null,1,494),n(6,null,1,494),n(8,null,1,587),n(8,null,1,587),n(6,null,2,494),
+        n(4,null,1,392),n(4,null,1,392),n(5,null,1,440),n(5,null,1,440),n(6,null,1,494),n(6,null,1,494),n(4,null,2,392),
+      ]
+    },
+    {
+      id:'allegro', title:'Allegro', level:'suzuki1', suzukiNo:8, bpm: 120,
+      notes:[
+        n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(8,null,1,587),n(9,null,1,659),n(10,'#',1,740),n(9,null,1,659),n(8,null,1,587),
+        n(7,'#',1,554),n(6,null,1,494),n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(8,null,1,587),n(9,null,1,659),
+        n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(8,null,1,587),n(9,null,1,659),n(10,'#',1,740),n(9,null,1,659),n(8,null,1,587),
+        n(7,'#',1,554),n(6,null,1,494),n(5,null,2,440),
+      ]
+    },
+    {
+      id:'perpetual', title:'Perpetual Motion', level:'suzuki1', suzukiNo:9, bpm: 132,
+      notes:[
+        n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(9,null,1,659),n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(9,null,1,659),
+        n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(9,null,1,659),n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(9,null,1,659),
+        n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(9,null,1,659),n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(9,null,1,659),
+        n(9,null,1,659),n(7,'#',1,554),n(6,null,1,494),n(5,null,1,440),n(9,null,1,659),n(7,'#',1,554),n(6,null,1,494),n(5,null,2,440),
+      ]
+    },
+    {
+      id:'allegretto', title:'Allegretto', level:'suzuki1', suzukiNo:10, bpm: 108,
+      notes:[
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),
+        n(1,null,1,294),n(5,null,1,440),n(5,null,1,440),n(5,null,1,440),n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),
+        n(1,null,1,294),n(5,null,1,440),n(5,null,1,440),n(5,null,1,440),n(4,null,1,392),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+      ]
+    },
+    {
+      id:'andantino', title:'Andantino', level:'suzuki1', suzukiNo:11, bpm: 88,
+      notes:[
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+      ]
+    },
+    {
+      id:'etude', title:'Etude', level:'suzuki1', suzukiNo:12, bpm: 100,
+      notes:[
+        n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(8,null,1,587),n(9,null,1,659),n(10,'#',1,740),n(9,null,1,659),n(8,null,1,587),
+        n(7,'#',1,554),n(6,null,1,494),n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(8,null,1,587),n(9,null,1,659),
+        n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(8,null,1,587),n(9,null,1,659),n(10,'#',1,740),n(9,null,1,659),n(8,null,1,587),
+        n(7,'#',1,554),n(6,null,1,494),n(5,null,2,440),
+      ]
+    },
+    {
+      id:'minuet2', title:'Minuet 2 (Bach)', level:'suzuki1', suzukiNo:14, bpm: 112, timeSig: [3, 4],
+      notes:[
+        n(8,null,1,587),n(6,null,1,494),n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),
+        n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),
+        n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+        n(8,null,1,587),n(6,null,1,494),n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),
+        n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),
+        n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+      ]
+    },
+    {
+      id:'minuet3', title:'Minuet 3 (Bach)', level:'suzuki1', suzukiNo:15, bpm: 112, timeSig: [3, 4],
+      notes:[
+        n(8,null,1,587),n(7,'#',1,554),n(6,null,1,494),n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(8,null,1,587),n(9,null,1,659),
+        n(10,'#',1,740),n(9,null,1,659),n(8,null,1,587),n(7,'#',1,554),n(6,null,1,494),n(5,null,2,440),
+        n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),
+        n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+        n(8,null,1,587),n(7,'#',1,554),n(6,null,1,494),n(5,null,1,440),n(6,null,1,494),n(7,'#',1,554),n(8,null,1,587),n(9,null,1,659),
+        n(10,'#',1,740),n(9,null,1,659),n(8,null,1,587),n(7,'#',1,554),n(6,null,1,494),n(5,null,2,440),
+      ]
+    },
+    {
+      id:'happyfarmer', title:'The Happy Farmer', level:'suzuki1', suzukiNo:16, bpm: 116,
+      notes:[
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+      ]
+    },
+    {
+      id:'gavotte', title:'Gavotte (Gossec)', level:'suzuki1', suzukiNo:17, bpm: 108,
+      notes:[
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+        n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+        n(1,null,1,294),n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,2,294),
+        n(2,null,1,330),n(3,'#',1,370),n(4,null,1,392),n(5,null,1,440),n(6,null,1,494),n(5,null,1,440),n(4,null,1,392),n(3,'#',1,370),n(2,null,1,330),n(1,null,4,294),
+      ]
+    },
   ];
 
   // ── SVG layout constants ──────────────────────────────
@@ -2794,8 +2932,9 @@ function pickWeightedNote(recentNotes) {
     const g = noteGroups[idx];
     if (!g) return;
     g.querySelector('.answer-hint')?.remove();
-    const note = activeSong.notes[idx];
-    if (note.rest) return;
+    const raw = activeSong.notes[idx];
+    if (raw.rest) return;
+    const note = songPitch(raw);
     const row = Math.floor(idx / NPR);
     const col = idx % NPR;
     const x = COL_X[col];
@@ -2860,25 +2999,26 @@ function pickWeightedNote(recentNotes) {
         return;
       }
 
-      const y = bly - (note.pos - 2) * NS_S;
+      const pitch = songPitch(note);
+      const y = bly - (pitch.pos - 2) * NS_S;
 
-      if (note.pos < 2) {
-        const low = note.pos%2===0 ? note.pos : note.pos+1;
+      if (pitch.pos < 2) {
+        const low = pitch.pos%2===0 ? pitch.pos : pitch.pos+1;
         for (let p=0; p>=low&&p<=0; p-=2)
           g.appendChild(svgEl('line',{class:'nledger',x1:x-LHW,x2:x+LHW,y1:bly-(p-2)*NS_S,y2:bly-(p-2)*NS_S,stroke:'#888','stroke-width':1.1}));
       }
-      if (note.pos > 10) {
-        const hi = note.pos%2===0 ? note.pos : note.pos-1;
+      if (pitch.pos > 10) {
+        const hi = pitch.pos%2===0 ? pitch.pos : pitch.pos-1;
         for (let p=12; p<=hi; p+=2)
           g.appendChild(svgEl('line',{class:'nledger',x1:x-LHW,x2:x+LHW,y1:bly-(p-2)*NS_S,y2:bly-(p-2)*NS_S,stroke:'#888','stroke-width':1.1}));
       }
 
-      if (noteNeedsAccidental(note)) {
+      if (noteNeedsAccidental(pitch)) {
         const at=svgEl('text',{class:'nacc',x:x-14,y:y+4,'font-size':13,'font-family':"Georgia,serif",fill:'#888','text-anchor':'middle'});
         at.textContent='♯'; g.appendChild(at);
       }
 
-      const up = note.pos < 6;
+      const up = pitch.pos < 6;
       g.appendChild(svgEl('ellipse',{class:'nhead',cx:x,cy:y,rx:7.5,ry:5.2,fill:'#888',transform:`rotate(-15,${x},${y})`}));
 
       const sx = up ? x+6.5 : x-6.5;
@@ -2892,7 +3032,7 @@ function pickWeightedNote(recentNotes) {
         g.appendChild(svgEl('ellipse',{class:'nopen',cx:x,cy:y,rx:8.5,ry:6,fill:'none',stroke:'#888','stroke-width':1.2,transform:`rotate(-15,${x},${y})`}));
       }
 
-      const str = primaryString(note.pos);
+      const str = primaryString(pitch.pos);
       const strCol = STR_COL[str] || '#888';
       const dotY = y - 16;
 
@@ -2902,7 +3042,7 @@ function pickWeightedNote(recentNotes) {
       }));
 
       if (showNotes) {
-        const fing = primaryFingering(note.pos);
+        const fing = primaryFingering(pitch.pos);
         const fTxt = fing.f === 0 ? '0' : String(fing.f);
 
         g.appendChild(svgEl('circle', {
@@ -3162,8 +3302,9 @@ function pickWeightedNote(recentNotes) {
     const ms = note.dur * getMsPerBeat();
 
     if (!note.rest) {
+      const pitch = songPitch(note);
       const toneSec = Math.max(0.08, Math.min(ms / 1000 * 0.92, ms / 1000 - 0.02));
-      playTone(note.hz, toneSec, 0.45);
+      playTone(pitch.hz, toneSec, 0.45);
     }
 
     playthroughTimer = setTimeout(() => playthroughNote(idx + 1, gen), ms);
@@ -3223,7 +3364,7 @@ function pickWeightedNote(recentNotes) {
     sHintEl.textContent = `Note ${activeSong.notes.slice(0, songIdx + 1).filter(n => !n.rest).length} / ${pitchNoteCount(activeSong)} · identify it!`;
     sFbEl.textContent = '';
     sFbEl.className = 'fb';
-    playTone(note.hz, 0.7, 0.4);
+    playTone(songPitch(note).hz, 0.7, 0.4);
   }
 
   function advanceSong() {
@@ -3249,11 +3390,12 @@ function pickWeightedNote(recentNotes) {
   function checkSong() {
     if (sSelS===null || sSelF===null || sLocked || !isPlaying) return;
     setSLocked(true);
-    const note  = activeSong.notes[songIdx];
-    const valid = PITCH_MAP[note.pos] || [];
-    const good  = valid.some(a=>a.s===sSelS&&a.f===sSelF);
-    // Record against the canonical NOTES entry for this pitch
-    const canon = NOTES.find(n => n.pos===note.pos);
+    const raw  = activeSong.notes[songIdx];
+    const note   = songPitch(raw);
+    const valid  = PITCH_MAP[note.pos] || [];
+    const good   = valid.some(a=>a.s===sSelS&&a.f===sSelF);
+    const canon  = NOTES.find(n => n.pos===note.pos && n.acc===note.acc)
+      || NOTES.find(n => n.pos===note.pos);
     if (canon) recordAnswer(canon, good);
 
     if (good) {
@@ -3276,7 +3418,7 @@ function pickWeightedNote(recentNotes) {
         document.querySelector(`#s-str [data-s="${a.s}"]`)?.classList.add('reveal');
         document.querySelector(`#s-fng [data-f="${a.f}"]`)?.classList.add('reveal');
       });
-      sFbEl.innerHTML=`❌ Expected <strong>${pitchName(note.pos)}</strong>`;
+      sFbEl.innerHTML=`❌ Expected <strong>${note.name || pitchName(note.pos)}</strong>`;
       sFbEl.className='fb wrong';
       colorNote(songIdx, '#e95555');
       addAnswerHint(songIdx, valid, 'wrong');
@@ -3290,6 +3432,7 @@ function pickWeightedNote(recentNotes) {
     { id: 'beginner',     label: 'Beginner' },
     { id: 'intermediate', label: 'Intermediate' },
     { id: 'advanced',     label: 'Advanced' },
+    { id: 'suzuki1',      label: 'Suzuki Vol 1' },
   ];
 
   function selectSong(song, chip) {
@@ -3315,7 +3458,8 @@ function pickWeightedNote(recentNotes) {
 
   const pickerEl = document.getElementById('song-picker');
   SONG_LEVELS.forEach(({ id, label }) => {
-    const songs = SONGS.filter(s => s.level === id);
+    const songs = SONGS.filter(s => s.level === id)
+      .sort((a, b) => (a.suzukiNo || 0) - (b.suzukiNo || 0));
     if (!songs.length) return;
 
     const group = document.createElement('div');
