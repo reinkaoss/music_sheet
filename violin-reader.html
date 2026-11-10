@@ -3,75 +3,103 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0d0c18">
+  <meta name="theme-color" content="#0a0912">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%230d0c18' width='100' height='100' rx='20'/%3E%3Ctext x='50' y='62' font-size='48' text-anchor='middle'%3E🎻%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%230a0912' width='100' height='100' rx='22'/%3E%3Cg fill='none' stroke='%237062ab' stroke-width='5' stroke-linecap='round'%3E%3Cpath d='M38 70V35l28-6v35'/%3E%3Ccircle cx='32' cy='70' r='8'/%3E%3Ccircle cx='60' cy='64' r='8'/%3E%3C/g%3E%3C/svg%3E">
   <title>Violin Sheet Reader</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       #0d0c18;
-      --surface:  #161425;
-      --card:     #1c1a2e;
-      --border:   #2c2845;
-      --accent:   #f5bb40;
+      --bg:       #0a0912;
+      --surface:  #13111f;
+      --card:     #1a1730;
+      --border:   #2a2642;
+      --purple-medium: #7062ab;
+      --purple-lo: rgba(112,98,171,.14);
+      --accent:   #d4b85a;
       --green:    #4dcb78;
-      --green-lo: rgba(77,203,120,.12);
+      --green-lo: rgba(77,203,120,.1);
       --red:      #e95555;
-      --red-lo:   rgba(233,85,85,.12);
-      --muted:    #6e6888;
-      --text:     #e9e4f8;
-      --sub:      #a099c0;
+      --red-lo:   rgba(233,85,85,.1);
+      --muted:    #7a7394;
+      --text:     #eeebf8;
+      --sub:      #a8a0c4;
       --staff-bg: #fefbf0;
+      --radius-sm: 10px;
+      --radius-md: 14px;
+      --radius-lg: 18px;
+      --shadow-card: 0 12px 40px rgba(0,0,0,.45);
     }
     html, body { height: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg); color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: radial-gradient(120% 80% at 50% -20%, rgba(112,98,171,.12), transparent 55%), var(--bg);
+      color: var(--text);
       display: flex; flex-direction: column; align-items: center;
-      padding: 12px 12px 16px; gap: 10px; min-height: 100%;
+      padding: 14px 14px 18px; gap: 12px; min-height: 100%;
+      -webkit-font-smoothing: antialiased;
     }
+
+  /* ── Lucide icons ───────────────────────────────────── */
+    .icon, .icon svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
+    .icon-sm, .icon-sm svg { width: .95rem; height: .95rem; }
+    .icon-lg, .icon-lg svg { width: 2.75rem; height: 2.75rem; }
+    .icon-label { display: inline-flex; align-items: center; gap: .45rem; }
+    .icon-muted { color: var(--muted); }
 
     /* ── Header ────────────────────────────────────────── */
     header {
       width: 100%; max-width: 440px;
       display: flex; justify-content: space-between; align-items: center;
     }
-    .logo { display: flex; align-items: center; gap: 8px; }
+    .logo { display: flex; align-items: center; gap: 10px; }
     .logo-icon {
-      width: 32px; height: 32px; border-radius: 9px;
-      background: linear-gradient(135deg,#f5bb40,#e8834a);
+      width: 36px; height: 36px; border-radius: var(--radius-sm);
+      background: linear-gradient(145deg, var(--purple-medium), #564a8a);
       display: flex; align-items: center; justify-content: center;
-      font-size: 16px;
+      color: #f0ecff;
+      box-shadow: 0 4px 14px rgba(112,98,171,.35);
     }
-    .logo-text { font-size: .95rem; font-weight: 700; letter-spacing: -.02em; }
-    .logo-text span { color: var(--accent); }
-    .scoreboard { display: flex; gap: 10px; }
+    .logo-icon .icon, .logo-icon svg { width: 1.25rem; height: 1.25rem; }
+    .logo-text { font-size: .98rem; font-weight: 700; letter-spacing: -.03em; }
+    .logo-text span { color: var(--purple-medium); }
+    .scoreboard { display: flex; gap: 8px; }
     .score-pill {
-      display: flex; align-items: center; gap: 5px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 99px; padding: 4px 10px;
-      font-size: .72rem; color: var(--sub);
+      display: flex; align-items: center; gap: 6px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 99px; padding: 5px 12px;
+      font-size: .72rem; color: var(--muted); font-weight: 500;
     }
-    .score-pill b { color: var(--text); font-size: .88rem; font-weight: 700; }
+    .score-pill .icon { color: var(--sub); }
+    .score-pill b { color: var(--text); font-size: .86rem; font-weight: 700; }
 
     /* ── Tab bar ───────────────────────────────────────── */
     .tab-bar {
       width: 100%; max-width: 440px;
-      display: flex; gap: 6px;
+      display: flex; gap: 4px;
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 14px; padding: 5px;
+      border-radius: var(--radius-md); padding: 4px;
     }
     .tab-btn {
-      flex: 1; padding: 9px 8px; border: none; border-radius: 10px;
+      flex: 1; padding: 8px 6px; border: none; border-radius: var(--radius-sm);
       background: transparent; color: var(--muted);
-      font-size: .82rem; font-weight: 600; cursor: pointer;
-      transition: background .15s, color .15s;
+      font-size: .68rem; font-weight: 600; letter-spacing: .02em;
+      cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      transition: background .15s, color .15s, box-shadow .15s;
       -webkit-tap-highlight-color: transparent;
     }
-    .tab-btn.active { background: var(--card); color: var(--text); }
+    .tab-btn .icon, .tab-btn svg { width: 1.15rem; height: 1.15rem; opacity: .75; }
+    .tab-btn.active {
+      background: var(--card); color: var(--text);
+      box-shadow: inset 0 0 0 1px var(--border);
+    }
+    .tab-btn.active .icon, .tab-btn.active svg { opacity: 1; color: var(--purple-medium); }
 
     /* ── Tab panels ────────────────────────────────────── */
     .tab-panel { display: none; width: 100%; max-width: 440px; flex-direction: column; gap: 10px; }
@@ -83,21 +111,23 @@
     }
     .progress-fill {
       height: 100%; border-radius: 99px;
-      background: linear-gradient(90deg, var(--accent), #e8834a);
+      background: linear-gradient(90deg, var(--purple-medium), var(--accent));
       transition: width .5s cubic-bezier(.4,0,.2,1); width: 0%;
     }
 
     /* ── Staff card ────────────────────────────────────── */
     .staff-wrap {
-      border-radius: 18px; overflow: hidden;
-      box-shadow: 0 10px 40px rgba(0,0,0,.55);
+      border-radius: var(--radius-lg); overflow: hidden;
+      border: 1px solid rgba(255,255,255,.06);
+      box-shadow: var(--shadow-card);
     }
     .staff-wrap svg { display: block; width: 100%; height: auto; }
 
     /* ── Scrollable song staff ─────────────────────────── */
     .song-staff-wrap {
-      border-radius: 18px; overflow: hidden;
-      box-shadow: 0 10px 40px rgba(0,0,0,.55);
+      border-radius: var(--radius-lg); overflow: hidden;
+      border: 1px solid rgba(255,255,255,.06);
+      box-shadow: var(--shadow-card);
       overflow-y: auto; scroll-behavior: smooth;
       /* height driven by SVG content; cap for very long sheets */
       max-height: calc(100vh - 300px); min-height: 80px;
@@ -131,8 +161,8 @@
     .btn-lbl { font-size: 1.1rem; font-weight: 800; line-height: 1; }
     .btn-sub { font-size: .58rem; font-weight: 500; color: var(--muted); }
     .btn:active { transform: scale(.94); }
-    .btn.selected { border-color: var(--accent); background: #22193a; color: var(--accent); }
-    .btn.selected .btn-sub { color: rgba(245,187,64,.55); }
+    .btn.selected { border-color: var(--purple-medium); background: var(--purple-lo); color: var(--text); }
+    .btn.selected .btn-sub { color: var(--muted); }
     .btn.correct  { border-color: var(--green); background: #0e2318; color: var(--green); animation: popIn .25s cubic-bezier(.34,1.56,.64,1); }
     .btn.correct  .btn-sub { color: rgba(77,203,120,.55); }
     .btn.wrong    { border-color: var(--red);   background: #2a0e0e; color: var(--red);   animation: shake .35s ease; }
@@ -170,28 +200,31 @@
       -webkit-tap-highlight-color: transparent;
       transition: border-color .14s, background .14s, color .14s;
     }
-    .chip.active { border-color: var(--accent); background: #22193a; color: var(--accent); }
+    .chip.active { border-color: var(--purple-medium); background: var(--purple-lo); color: var(--text); }
 
     /* ── Play / stop + quiz buttons ───────────────────── */
     .song-actions { display: flex; gap: 8px; }
     .play-btn {
-      flex: 1; padding: 14px; border: none; border-radius: 14px;
-      background: var(--accent); color: #12111a;
-      font-size: .95rem; font-weight: 700; cursor: pointer;
+      flex: 1; padding: 14px; border: none; border-radius: var(--radius-md);
+      background: var(--purple-medium); color: #f8f6ff;
+      font-size: .92rem; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       -webkit-tap-highlight-color: transparent;
-      transition: background .15s, color .15s, transform .1s;
+      transition: background .15s, color .15s, transform .1s, filter .15s;
     }
+    .play-btn:hover { filter: brightness(1.06); }
     .play-btn:active { transform: scale(.98); }
     .play-btn.stop  { background: var(--surface); color: var(--red); border: 1.5px solid var(--red); }
     .play-btn:disabled { opacity: .4; cursor: default; }
     .quiz-btn {
-      padding: 14px 18px; border: 1.5px solid var(--accent); border-radius: 14px;
-      background: transparent; color: var(--accent);
-      font-size: .95rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+      padding: 14px 18px; border: 1.5px solid var(--border); border-radius: var(--radius-md);
+      background: var(--surface); color: var(--text);
+      font-size: .92rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       -webkit-tap-highlight-color: transparent;
-      transition: background .15s;
+      transition: background .15s, border-color .15s;
     }
-    .quiz-btn:active  { background: rgba(245,187,64,.1); }
+    .quiz-btn:active  { background: var(--card); border-color: var(--purple-medium); }
     .quiz-btn:disabled{ opacity: .4; cursor: default; }
 
     /* ── Tempo slider ──────────────────────────────────── */
@@ -201,7 +234,7 @@
     }
     .tempo-row span { font-size: 1rem; line-height: 1; flex-shrink: 0; }
     .tempo-row input[type=range] {
-      flex: 1; height: 4px; accent-color: var(--accent);
+      flex: 1; height: 4px; accent-color: var(--purple-medium);
       -webkit-appearance: none; appearance: none;
       background: var(--border); border-radius: 99px;
     }
@@ -214,13 +247,14 @@
     /* ── Staff toggles ─────────────────────────────────── */
     .staff-toggles { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
     .toggle-btn {
+      display: inline-flex; align-items: center; gap: 6px;
       padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 99px;
       background: var(--surface); color: var(--sub);
       font-size: .72rem; font-weight: 600; cursor: pointer;
       -webkit-tap-highlight-color: transparent;
       transition: border-color .14s, background .14s, color .14s;
     }
-    .toggle-btn.active { border-color: var(--accent); background: #22193a; color: var(--accent); }
+    .toggle-btn.active { border-color: var(--purple-medium); background: var(--purple-lo); color: var(--text); }
 
     /* ── String filter (practice / live) ───────────────── */
     .string-filter-wrap { display: flex; flex-direction: column; gap: 6px; }
@@ -243,9 +277,10 @@
 
     /* ── Hear note + cents meter ───────────────────────── */
     .hear-btn {
-      padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 12px;
+      padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
       background: var(--surface); color: var(--sub); font-size: .78rem; font-weight: 600;
       cursor: pointer; width: 100%; -webkit-tap-highlight-color: transparent;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     }
     .hear-btn:active { background: var(--card); }
     .cents-meter { display: flex; flex-direction: column; gap: 4px; align-items: center; }
@@ -284,14 +319,15 @@
       border-radius: 20px; padding: 22px 20px; text-align: center;
       box-shadow: 0 20px 60px rgba(0,0,0,.55);
     }
-    .overlay-card h2 { font-size: 1.2rem; color: var(--accent); margin-bottom: 10px; }
+    .overlay-card h2 { font-size: 1.15rem; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+    .overlay-card h2 .icon-label { justify-content: center; }
     .overlay-card p { font-size: .84rem; color: var(--sub); line-height: 1.5; margin-bottom: 14px; text-align: left; }
     .overlay-card ul { text-align: left; font-size: .8rem; color: var(--sub); margin: 0 0 14px 18px; line-height: 1.55; }
     .overlay-actions { display: flex; gap: 8px; flex-direction: column; }
     .overlay-btn {
       padding: 12px; border: none; border-radius: 12px; font-size: .88rem; font-weight: 700; cursor: pointer;
     }
-    .overlay-btn.primary { background: var(--accent); color: #12111a; }
+    .overlay-btn.primary { background: var(--purple-medium); color: #f8f6ff; }
     .overlay-btn.ghost { background: transparent; color: var(--sub); border: 1.5px solid var(--border); }
     .session-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 12px 0; }
     .session-stat { background: var(--surface); border-radius: 10px; padding: 10px 6px; }
@@ -320,10 +356,10 @@
       display: flex; align-items: center; justify-content: space-between; gap: 10px;
       margin-bottom: 8px;
     }
-    .session-toast-head h2 { font-size: .92rem; color: var(--accent); margin: 0; }
+    .session-toast-head h2 { font-size: .92rem; color: var(--text); margin: 0; font-weight: 600; }
     .session-toast-dismiss {
       padding: 5px 12px; border: none; border-radius: 99px;
-      background: var(--accent); color: #12111a;
+      background: var(--purple-medium); color: #f8f6ff;
       font-size: .72rem; font-weight: 700; cursor: pointer; flex-shrink: 0;
     }
     .session-toast .session-stats {
@@ -358,12 +394,13 @@
       border-radius: 18px; text-align: center;
     }
     .song-end.visible { display: flex; }
-    .song-end h2 { font-size: 1.3rem; color: var(--accent); }
+    .song-end-icon { color: var(--purple-medium); margin-bottom: 4px; }
     .song-end p  { font-size: .9rem;  color: var(--sub); }
     .replay-btn {
-      padding: 11px 28px; border: 1.5px solid var(--accent); border-radius: 12px;
-      background: transparent; color: var(--accent); font-size: .9rem; font-weight: 700;
+      padding: 11px 28px; border: 1.5px solid var(--purple-medium); border-radius: var(--radius-sm);
+      background: transparent; color: var(--text); font-size: .88rem; font-weight: 600;
       cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px;
     }
 
     /* ── Hint ──────────────────────────────────────────── */
@@ -374,7 +411,7 @@
       background: var(--card); border: 1px solid var(--border);
       border-radius: 18px; padding: 22px 16px; text-align: center;
     }
-    .acc-big  { font-size: 3.2rem; font-weight: 800; line-height: 1; color: var(--accent); }
+    .acc-big  { font-size: 3.2rem; font-weight: 800; line-height: 1; color: var(--purple-medium); }
     .acc-sub  { font-size: .78rem; color: var(--muted); margin-top: 5px; }
     .stats-section-title {
       font-size: .68rem; text-transform: uppercase; letter-spacing: .1em;
@@ -402,6 +439,7 @@
       background: transparent; color: var(--red);
       font-size: .85rem; font-weight: 600; cursor: pointer;
       -webkit-tap-highlight-color: transparent;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     }
     .reset-btn:active { background: rgba(233,85,85,.08); }
 
@@ -419,6 +457,7 @@
       color: var(--text); font-size: .78rem; font-weight: 600; text-align: center;
       box-shadow: 0 8px 32px rgba(0,0,0,.45);
       cursor: pointer; -webkit-tap-highlight-color: transparent;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
     }
     .audio-hint.hidden { display: none; }
 
@@ -540,7 +579,7 @@
 
 <div id="onboarding" class="overlay">
   <div class="overlay-card">
-    <h2>🎻 Welcome</h2>
+    <h2><span class="icon-label"><i data-lucide="music-2" class="icon"></i> Welcome</span></h2>
     <ul>
       <li><strong>Tap “Enable sound”</strong> at the bottom first (required on mobile).</li>
       <li><strong>Practice</strong> — pick string + finger for each note.</li>
@@ -572,23 +611,23 @@
 <!-- ── Header ──────────────────────────────────────────── -->
 <header>
   <div class="logo">
-    <div class="logo-icon">🎻</div>
+    <div class="logo-icon"><i data-lucide="music-2" class="icon"></i></div>
     <div class="logo-text"><span>Violin</span> Reader</div>
   </div>
   <div class="scoreboard" id="header-scores">
-    <div class="score-pill">✅ <b id="st-ok">0</b></div>
-    <div class="score-pill">🔥 <b id="st-streak">0</b></div>
+    <div class="score-pill"><i data-lucide="check-circle-2" class="icon icon-sm"></i> <b id="st-ok">0</b></div>
+    <div class="score-pill"><i data-lucide="flame" class="icon icon-sm"></i> <b id="st-streak">0</b></div>
   </div>
 </header>
 
-<div id="audio-hint" class="audio-hint" role="button" tabindex="0">🔊 Tap to enable sound</div>
+<div id="audio-hint" class="audio-hint" role="button" tabindex="0"><i data-lucide="volume-2" class="icon"></i><span>Tap to enable sound</span></div>
 
 <!-- ── Tab bar ──────────────────────────────────────────── -->
 <div class="tab-bar">
-  <button class="tab-btn active" data-tab="practice">🎲 Practice</button>
-  <button class="tab-btn"        data-tab="live">🎤 Live</button>
-  <button class="tab-btn"        data-tab="songs">🎵 Songs</button>
-  <button class="tab-btn"        data-tab="stats">📊 Stats</button>
+  <button class="tab-btn active" data-tab="practice"><i data-lucide="layout-list" class="icon"></i><span>Practice</span></button>
+  <button class="tab-btn" data-tab="live"><i data-lucide="mic" class="icon"></i><span>Live</span></button>
+  <button class="tab-btn" data-tab="songs"><i data-lucide="music" class="icon"></i><span>Songs</span></button>
+  <button class="tab-btn" data-tab="stats"><i data-lucide="bar-chart-3" class="icon"></i><span>Stats</span></button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
@@ -606,13 +645,13 @@
 
       <div class="note-row">
         <span class="note-tag" id="p-hint">Select string → finger</span>
-        <span class="note-ctr" id="p-ctr">♩ 1</span>
+        <span class="note-ctr" id="p-ctr">Note 1</span>
       </div>
 
-      <button type="button" class="hear-btn" id="p-hear-btn">🔊 Hear this note</button>
+      <button type="button" class="hear-btn" id="p-hear-btn"><i data-lucide="volume-2" class="icon icon-sm"></i> Hear this note</button>
 
       <div class="fb-wrap"><div class="fb" id="p-fb">Pick a string then a finger — auto-checks!</div></div>
-      <div class="hint">Tap string + finger · 🔊 plays on correct</div>
+      <div class="hint">Tap string + finger · plays tone when correct</div>
     </div>
 
     <div class="panel-side">
@@ -664,7 +703,7 @@
             <button type="button" class="filter-chip active" data-difficulty="full">Full</button>
           </div>
         </div>
-        <button type="button" class="toggle-btn" id="practice-uninterrupted-btn">🔁 Uninterrupted</button>
+        <button type="button" class="toggle-btn" id="practice-uninterrupted-btn"><i data-lucide="repeat" class="icon icon-sm"></i> Uninterrupted</button>
         <div class="hint" id="practice-uninterrupted-hint" style="display:none">Same note until correct · Skip to move on</div>
       </div>
     </div>
@@ -687,7 +726,7 @@
 
       <div class="note-row">
         <span class="note-tag" id="l-hint">Play the highlighted note on your violin</span>
-        <span class="note-ctr" id="l-ctr">♩ 1</span>
+        <span class="note-ctr" id="l-ctr">Note 1</span>
       </div>
 
       <div class="live-pitch" id="live-pitch">—</div>
@@ -695,7 +734,7 @@
         <div class="cents-bar"><div class="cents-needle" id="live-needle"></div></div>
         <div class="cents-lbl" id="live-cents-lbl">Play a note to see tuning</div>
       </div>
-      <button type="button" class="hear-btn" id="l-hear-btn">🔊 Hear this note</button>
+      <button type="button" class="hear-btn" id="l-hear-btn"><i data-lucide="volume-2" class="icon icon-sm"></i> Hear this note</button>
       <div class="fb-wrap"><div class="fb" id="l-fb">Hold a steady note — we'll detect the pitch</div></div>
       <div class="hint">Quiet room · bow close to the mic · G3–B5 range</div>
     </div>
@@ -750,11 +789,11 @@
             <button type="button" class="filter-chip active" data-difficulty="full">Full</button>
           </div>
         </div>
-        <button type="button" class="toggle-btn" id="live-uninterrupted-btn">🔁 Uninterrupted</button>
+        <button type="button" class="toggle-btn" id="live-uninterrupted-btn"><i data-lucide="repeat" class="icon icon-sm"></i> Uninterrupted</button>
         <div class="hint" id="live-uninterrupted-hint" style="display:none">Same note until you play it correctly · Skip to move on</div>
-        <div class="live-status" id="live-status">🎤 Tap Start to enable the microphone</div>
+        <div class="live-status" id="live-status">Tap Start to enable the microphone</div>
         <div class="live-actions">
-          <button class="play-btn" id="live-start-btn">🎤 Start Listening</button>
+          <button class="play-btn" id="live-start-btn"><i data-lucide="mic" class="icon icon-sm"></i> Start Listening</button>
           <button class="live-skip" id="live-skip-btn" disabled>Skip</button>
         </div>
         <button type="button" class="undo-btn" id="live-undo-btn">↩ Undo last (wrong detection)</button>
@@ -786,22 +825,22 @@
       <div class="live-pitch" id="s-playalong-pitch" style="display:none;font-size:1rem;">—</div>
 
       <div class="staff-toggles">
-        <button class="toggle-btn" id="show-notes-btn">👁 Show notes</button>
+        <button class="toggle-btn" id="show-notes-btn"><i data-lucide="eye" class="icon icon-sm"></i> Show notes</button>
         <button class="toggle-btn" id="key-sig-btn" data-key="D">Key: D major</button>
-        <button class="toggle-btn" id="playalong-btn">🎤 Play-along mic</button>
+        <button class="toggle-btn" id="playalong-btn"><i data-lucide="mic-2" class="icon icon-sm"></i> Play-along mic</button>
         <span class="hint" style="opacity:1;margin:0;">Shows note name, finger &amp; string colour</span>
       </div>
 
       <div class="tempo-row" id="tempo-row">
-        <span aria-hidden="true">🐢</span>
+        <i data-lucide="gauge" class="icon icon-sm icon-muted" aria-hidden="true"></i>
         <input type="range" id="tempo-slider" min="50" max="160" value="109" aria-label="Playback tempo">
-        <span aria-hidden="true">🐇</span>
+        <i data-lucide="zap" class="icon icon-sm icon-muted" aria-hidden="true"></i>
         <span class="tempo-label" id="tempo-label">109 BPM</span>
       </div>
 
       <div class="song-actions">
-        <button class="play-btn" id="play-btn" disabled>▶ Listen First</button>
-        <button class="quiz-btn" id="quiz-btn" disabled>🎯 Quiz</button>
+        <button class="play-btn" id="play-btn" disabled><i data-lucide="play" class="icon icon-sm"></i> Listen First</button>
+        <button class="quiz-btn" id="quiz-btn" disabled><i data-lucide="target" class="icon icon-sm"></i> Quiz</button>
       </div>
 
       <div id="s-controls" style="display:none; flex-direction:column; gap:9px;">
@@ -828,9 +867,9 @@
       </div>
 
       <div class="song-end" id="song-end">
-        <h2 id="end-emoji">🎉</h2>
+        <div class="song-end-icon icon-lg" id="end-icon" aria-hidden="true"><i data-lucide="award" class="icon-lg"></i></div>
         <p id="end-msg"></p>
-        <button class="replay-btn" id="replay-btn">↺ Play Again</button>
+        <button class="replay-btn" id="replay-btn"><i data-lucide="rotate-ccw" class="icon icon-sm"></i> Play Again</button>
       </div>
     </div><!-- /songs-main -->
   </div><!-- /panel-layout -->
@@ -870,17 +909,54 @@
     <div id="tough-notes"></div>
   </div>
 
-  <button class="reset-btn" id="reset-stats">🗑 Reset all stats</button>
+  <button class="reset-btn" id="reset-stats"><i data-lucide="trash-2" class="icon icon-sm"></i> Reset all stats</button>
 
 </div><!-- /tab-stats -->
 
 <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      SCRIPT
      ═══════════════════════════════════════════════════════ -->
 <script>
 'use strict';
+
+// ── Lucide icons ───────────────────────────────────────────
+const ICON_STROKE = 1.75;
+
+function iconMarkup(name, size) {
+  const px = size || 16;
+  return `<i data-lucide="${name}" class="icon" style="width:${px}px;height:${px}px" aria-hidden="true"></i>`;
+}
+
+function refreshIcons(root) {
+  if (typeof lucide === 'undefined') return;
+  lucide.createIcons({
+    attrs: { 'stroke-width': ICON_STROKE },
+    nameAttr: 'data-lucide',
+    root: root && root.nodeType === 1 ? root : undefined,
+  });
+}
+
+function setIconLabel(el, icon, text, size) {
+  el.innerHTML = `<span class="icon-label">${iconMarkup(icon, size)}<span>${text}</span></span>`;
+  refreshIcons(el);
+}
+
+function feedbackHtml(kind, inner) {
+  const ic = kind === 'ok' ? 'check-circle-2' : kind === 'bad' ? 'x-circle' : null;
+  const html = ic ? `<span class="icon-label">${iconMarkup(ic, 15)}<span>${inner}</span></span>` : inner;
+  return html;
+}
+
+function setEndIcon(pct) {
+  const el = document.getElementById('end-icon');
+  if (!el) return;
+  const name = pct >= 80 ? 'award' : pct >= 50 ? 'thumbs-up' : 'trending-up';
+  el.innerHTML = iconMarkup(name, 44);
+  refreshIcons(el);
+}
 
 // ── SHARED NOTE DATA ──────────────────────────────────────
 // pos: diatonic step (C4=0, D4=1, E4=2, …)
@@ -1481,7 +1557,7 @@ function showSessionSummary() {
     ? 'Focus next: ' + weakKey[0]
     : 'Great session — no weak spots!';
   document.getElementById('session-title').textContent =
-    pct >= 80 ? '🎉 Nice session!' : pct >= 50 ? '👍 Keep practicing' : '💪 Room to grow';
+    pct >= 80 ? 'Nice session' : pct >= 50 ? 'Keep practicing' : 'Room to grow';
   saveSessionHistory({ date: Date.now(), mode: snap.mode, ok, total: r.length, pct });
   _pendingSummary = null;
   document.getElementById('session-summary').classList.add('visible');
@@ -1851,7 +1927,7 @@ function pickWeightedNote(recentNotes) {
   function setProgress() {
     const pool = getFilteredNotes().length;
     document.getElementById('p-progress').style.width=((answered%Math.max(pool,1))/Math.max(pool,1)*100)+'%';
-    document.getElementById('p-ctr').textContent='♩ '+(answered+1);
+    document.getElementById('p-ctr').textContent='Note '+(answered+1);
   }
   function resetBtns() {
     selS=null; selF=null;
@@ -1909,7 +1985,8 @@ function pickWeightedNote(recentNotes) {
       playTone(note.hz);
       document.querySelector(`#p-str [data-s="${selS}"]`)?.classList.add('correct');
       document.querySelector(`#p-fng [data-f="${selF}"]`)?.classList.add('correct');
-      fbEl.innerHTML=`✅ <strong>${note.name}</strong> · ${note.s} string, finger ${note.f}`;
+      fbEl.innerHTML=feedbackHtml('ok', `<strong>${note.name}</strong> · ${note.s} string, finger ${note.f}`);
+      refreshIcons(fbEl);
       fbEl.className='fb correct';
       hEl.textContent=note.name;
       renderPractice(visible(),'correct',[{s:selS,f:selF}]);
@@ -1930,8 +2007,9 @@ function pickWeightedNote(recentNotes) {
         });
       }
       fbEl.innerHTML=isUninterrupted()
-        ? '❌ Not quite — try again'
-        : `❌ Expected <strong>${note.name}</strong>`;
+        ? feedbackHtml('bad', 'Not quite — try again')
+        : feedbackHtml('bad', `Expected <strong>${note.name}</strong>`);
+      refreshIcons(fbEl);
       fbEl.className='fb wrong';
       renderPractice(visible(),'wrong',isUninterrupted() ? null : valid);
       document.getElementById('st-streak').textContent=0;
@@ -2133,7 +2211,7 @@ function pickWeightedNote(recentNotes) {
   function setProgress() {
     const pool = getFilteredNotes().length;
     document.getElementById('l-progress').style.width=((answered%Math.max(pool,1))/Math.max(pool,1)*100)+'%';
-    document.getElementById('l-ctr').textContent='♩ '+(answered+1);
+    document.getElementById('l-ctr').textContent='Note '+(answered+1);
   }
 
   function resetDetect() {
@@ -2195,6 +2273,7 @@ function pickWeightedNote(recentNotes) {
   function finishRound(flash, fbHtml, fbClass, hintText, valid) {
     locked=true;
     fbEl.innerHTML=fbHtml;
+    refreshIcons(fbEl);
     fbEl.className='fb ' + fbClass;
     hEl.textContent=hintText;
     renderLiveStaff(visible(),flash, flash === 'wrong' && !isUninterrupted() ? valid : null);
@@ -2255,7 +2334,7 @@ function pickWeightedNote(recentNotes) {
     document.getElementById('st-streak').textContent=streak;
     const ans=valid.map(a=>`${a.s} str, f${a.f}`).join(' or ');
     finishRound('correct',
-      `✅ <strong>${note.name}</strong> · heard ${heard.name}${ans ? ' · ' + ans : ''}`,
+      feedbackHtml('ok', `<strong>${note.name}</strong> · heard ${heard.name}${ans ? ' · ' + ans : ''}`),
       'correct', note.name, null);
   }
 
@@ -2270,8 +2349,8 @@ function pickWeightedNote(recentNotes) {
     const heardLabel=heard ? heard.name : 'another note';
     finishRound('wrong',
       isUninterrupted()
-        ? '❌ Not quite — try again'
-        : `❌ Expected <strong>${note.name}</strong> · heard ${heardLabel}`,
+        ? feedbackHtml('bad', 'Not quite — try again')
+        : feedbackHtml('bad', `Expected <strong>${note.name}</strong> · heard ${heardLabel}`),
       'wrong',
       isUninterrupted() ? 'Try the highlighted note again' : note.name,
       valid);
@@ -2374,7 +2453,7 @@ function pickWeightedNote(recentNotes) {
       analyser.smoothingTimeConstant=_isMobile ? 0.05 : 0.2;
       micCtx.createMediaStreamSource(micStream).connect(analyser);
       listening=true;
-      startBtn.textContent='⏹ Stop';
+      setIconLabel(startBtn, 'square', 'Stop', 16);
       startBtn.disabled=false;
       skipBtn.disabled=locked;
       statusEl.textContent='Listening — play the highlighted note';
@@ -2398,9 +2477,9 @@ function pickWeightedNote(recentNotes) {
     if (micOwnsCtx && micCtx) { micCtx.close().catch(()=>{}); }
     micCtx=null;
     micOwnsCtx=false;
-    startBtn.textContent='🎤 Start Listening';
+    setIconLabel(startBtn, 'mic', 'Start Listening', 16);
     skipBtn.disabled=true;
-    statusEl.textContent='🎤 Tap Start to enable the microphone';
+    statusEl.textContent='Tap Start to enable the microphone';
     statusEl.className='live-status';
     resetDetect();
   }
@@ -3306,7 +3385,7 @@ function pickWeightedNote(recentNotes) {
         const hz = detectPitchHz(paAnalyser, paCtx.sampleRate, 0.004);
         if (!hz) { playAlongPitch.textContent = '—'; return; }
         const heard = matchPitchToNote(hz, 50);
-        playAlongPitch.textContent = heard ? '🎤 ' + heard.name : '🎤 ' + Math.round(hz) + ' Hz';
+        playAlongPitch.textContent = heard ? heard.name : Math.round(hz) + ' Hz';
       }, 60);
     } catch (_) {}
   }
@@ -3333,7 +3412,7 @@ function pickWeightedNote(recentNotes) {
   showNotesBtn.addEventListener('click', () => {
     showNotes = !showNotes;
     showNotesBtn.classList.toggle('active', showNotes);
-    showNotesBtn.textContent = showNotes ? '👁 Hide notes' : '👁 Show notes';
+    setIconLabel(showNotesBtn, showNotes ? 'eye-off' : 'eye', showNotes ? 'Hide notes' : 'Show notes', 15);
     if (activeSong) renderSong(activeSong);
   });
 
@@ -3343,7 +3422,7 @@ function pickWeightedNote(recentNotes) {
 
   function sStat() {
     sCtrEl.textContent = activeSong
-      ? `${sOk} / ${pitchNoteCount(activeSong)} ✅`
+      ? `${sOk} / ${pitchNoteCount(activeSong)} correct`
       : '0 / 0';
   }
   function setSLocked(v) {
@@ -3376,7 +3455,7 @@ function pickWeightedNote(recentNotes) {
     moveCursor(-1);
     songEnd.classList.remove('visible');
     sCtrl.style.display = 'none';
-    playBtn.textContent = '⏹ Stop'; playBtn.classList.add('stop');
+    setIconLabel(playBtn, 'square', 'Stop', 16); playBtn.classList.add('stop');
     quizBtn.style.display = 'none'; // hide quiz btn while a session is running
     resetSBtns(); sStat();
     sFbEl.textContent = ''; sFbEl.className = 'fb';
@@ -3388,7 +3467,7 @@ function pickWeightedNote(recentNotes) {
     unlockAudioSync();
     _beginSession();
     const gen = playGen;
-    sHintEl.textContent = '🎵 Listen to the whole song…';
+    sHintEl.textContent = 'Listen to the whole song…';
     loadSamplerOnce();
     unlockAudio().finally(() => {
       if (gen !== playGen || !isPlaying) return;
@@ -3403,7 +3482,7 @@ function pickWeightedNote(recentNotes) {
     if (idx >= activeSong.notes.length) {
       noteGroups.forEach((_, i) => colorNote(i, '#888'));
       moveCursor(-1);
-      sHintEl.textContent = '✅ Now identify each note!';
+      sHintEl.textContent = 'Now identify each note';
       playthroughFinishTimer = setTimeout(() => {
         if (gen === playGen && isPlaying) startIdentification(gen);
       }, 400);
@@ -3433,7 +3512,7 @@ function pickWeightedNote(recentNotes) {
     unlockAudioSync();
     _beginSession();
     const gen = playGen;
-    sHintEl.textContent = '🎯 Identify each note!';
+    sHintEl.textContent = 'Identify each note';
     loadSamplerOnce();
     unlockAudio().finally(() => {
       if (gen !== playGen || !isPlaying) return;
@@ -3452,7 +3531,7 @@ function pickWeightedNote(recentNotes) {
   }
 
   function _restoreButtons() {
-    playBtn.textContent = '▶ Listen First'; playBtn.classList.remove('stop');
+    setIconLabel(playBtn, 'play', 'Listen First', 16); playBtn.classList.remove('stop');
     quizBtn.style.display = '';
   }
 
@@ -3499,7 +3578,7 @@ function pickWeightedNote(recentNotes) {
     // Show end card
     const total = pitchNoteCount(activeSong);
     const pct   = total > 0 ? Math.round(sOk / total * 100) : 0;
-    document.getElementById('end-emoji').textContent = pct>=80?'🎉':pct>=50?'👍':'💪';
+    setEndIcon(pct);
     document.getElementById('end-msg').textContent   = `${sOk} / ${total} correct  (${pct}%)`;
     songEnd.classList.add('visible');
   }
@@ -3520,7 +3599,8 @@ function pickWeightedNote(recentNotes) {
       playTone(note.hz, 0.9, 0.5);
       document.querySelector(`#s-str [data-s="${sSelS}"]`)?.classList.add('correct');
       document.querySelector(`#s-fng [data-f="${sSelF}"]`)?.classList.add('correct');
-      sFbEl.innerHTML=`✅ <strong>${valid[0].s} string, finger ${valid[0].f}</strong>`;
+      sFbEl.innerHTML=feedbackHtml('ok', `<strong>${valid[0].s} string, finger ${valid[0].f}</strong>`);
+      refreshIcons(sFbEl);
       sFbEl.className='fb correct';
       colorNote(songIdx, '#4dcb78');
       addAnswerHint(songIdx, [{ s: sSelS, f: sSelF }], 'correct');
@@ -3535,7 +3615,8 @@ function pickWeightedNote(recentNotes) {
         document.querySelector(`#s-str [data-s="${a.s}"]`)?.classList.add('reveal');
         document.querySelector(`#s-fng [data-f="${a.f}"]`)?.classList.add('reveal');
       });
-      sFbEl.innerHTML=`❌ Expected <strong>${note.name || pitchName(note.pos)}</strong>`;
+      sFbEl.innerHTML=feedbackHtml('bad', `Expected <strong>${note.name || pitchName(note.pos)}</strong>`);
+      refreshIcons(sFbEl);
       sFbEl.className='fb wrong';
       colorNote(songIdx, '#e95555');
       addAnswerHint(songIdx, valid, 'wrong');
@@ -3564,7 +3645,7 @@ function pickWeightedNote(recentNotes) {
     songEnd.classList.remove('visible');
     sCtrl.style.display = 'none';
     playBtn.disabled = false; quizBtn.disabled = false;
-    playBtn.textContent = '▶ Listen First';
+    setIconLabel(playBtn, 'play', 'Listen First', 16);
     playBtn.classList.remove('stop');
     sHintEl.textContent = `${song.title} · ${song.notes.length} notes`;
     sStat();
@@ -3772,6 +3853,7 @@ function renderStats() {
 
 initOnboarding();
 syncStringFilterUI();
+refreshIcons();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }

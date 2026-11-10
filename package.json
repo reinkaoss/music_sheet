@@ -1,0 +1,12 @@
+{
+  "name": "violin-sheet-reader",
+  "private": true,
+  "description": "Violin note-reading practice app (staff, live mic, Suzuki songs)",
+  "scripts": {
+    "dev": "serve . -l 3000",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}

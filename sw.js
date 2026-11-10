@@ -1,9 +1,11 @@
-const CACHE = 'violin-reader-v1';
+const CACHE = 'violin-reader-v3';
 const ASSETS = [
   '/',
   '/violin-reader.html',
   '/manifest.json',
   'https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js',
+  'https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js',
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
 ];
 
 self.addEventListener('install', e => {
